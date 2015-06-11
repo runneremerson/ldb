@@ -1,7 +1,7 @@
 #include "ldb_context.h"
 #include "lmalloc.h"
 
-#include <leveldb/c.h>
+#include <leveldb-ldb/c.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>

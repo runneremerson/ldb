@@ -1,7 +1,7 @@
 #ifndef LDB_CONTEXT_H
 #define LDB_CONTEXT_H
 
-#include <leveldb/c.h>
+#include <leveldb-ldb/c.h>
 #include <stdlib.h>
 #include <unistd.h>
 
