@@ -11,6 +11,7 @@ struct ldb_context_t{
     leveldb_options_t*          options_;
     leveldb_filterpolicy_t*     filtter_policy_;
     leveldb_cache_t*            block_cache_;
+    leveldb_mutex_t*            mutex_;
 };
 
 typedef struct ldb_context_t    ldb_context_t;
@@ -21,5 +22,3 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
 void ldb_context_destroy( ldb_context_t* context);
 
 #endif //LDB_CONTEXT_H
-
-
