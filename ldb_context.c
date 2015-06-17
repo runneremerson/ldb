@@ -22,6 +22,7 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
     context->block_cache_ = leveldb_cache_create_lru(cache_size*1024*1024);
     leveldb_options_set_cache(context->options_, context->block_cache_);
     context->mutex_ = leveldb_mutex_create();
+    context->batch_ = leveldb_writebatch_create();
     leveldb_options_set_block_size(context->options_, 32*1024);
     leveldb_options_set_write_buffer_size(context->options_, write_buffer_size*1024*1024);
     leveldb_options_set_compression(context->options_, leveldb_snappy_compression);
@@ -48,6 +49,9 @@ err:
     if(context->mutex_!=NULL){
         leveldb_mutex_destroy(context->mutex_);
     }
+    if(context->batch_!=NULL){
+        leveldb_writebatch_destroy(context->batch_);
+    }
     lfree(context);
     return NULL;
 }
@@ -59,5 +63,12 @@ void ldb_context_destroy( ldb_context_t* context){
     leveldb_filterpolicy_destroy(context->filtter_policy_);
     leveldb_cache_destroy(context->block_cache_);
     leveldb_mutex_destroy(context->mutex_);
+    leveldb_writebatch_destroy(context->batch_);
     lfree(context);
+}
+
+void ldb_context_commit_writebatch(ldb_context_t* context, char** errptr){
+    leveldb_writeoptions_t *writeoptions = leveldb_writeoptions_create();
+    leveldb_write(context->database_, writeoptions, context->batch_, errptr);
+    leveldb_writeoptions_destroy(writeoptions);
 }

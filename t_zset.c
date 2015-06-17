@@ -8,19 +8,46 @@
 #include <stdio.h>
 #include <string.h>
 
+static const char* LDB_SCORE_MIN = "-9223372036854775808";
+static const char* LDB_SCORE_MAX = "+9223372036854775807";
+
+static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, int64_t score);
+
+static int zset_del(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key);
+
+static int zset_incr_size(ldb_context_t *context, const ldb_slice_t* name, int64_t by);
+
 static void encode_zsize_key(const char* name, size_t namelen, ldb_slice_t** pslice){
   ldb_slice_t* slice = ldb_slice_create(LDB_DATA_TYPE_ZSIZE, strlen(LDB_DATA_TYPE_ZSIZE));
   ldb_slice_push_back(slice, name, namelen);
   *pslice = slice;
 }
 
-static void decode_zsize_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice){
-  if(ldbkeylen>strlen(LDB_DATA_TYPE_ZSIZE)){
-    ldb_slice_t* slice = ldb_slice_create(ldbkey + strlen(LDB_DATA_TYPE_ZSIZE), ldbkeylen - strlen(LDB_DATA_TYPE_ZSIZE)); 
-    *pslice = slice;
-  }else{
-    *pslice = NULL;
+static int decode_zsize_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice){
+  int retval = 0;
+  ldb_bytes_t* bytes = ldb_bytes_create(ldbkey, ldbkeylen); 
+  if(ldb_bytes_skip(bytes, strlen(LDB_DATA_TYPE_ZSIZE)) == -1){
+    goto err;
   }
+  ldb_slice_t *key_slice = NULL;
+  if(ldb_bytes_read_slice_size_left(bytes, &key_slice) == -1){
+    goto err;
+  }
+  goto nor;
+
+nor:
+  *pslice = key_slice;
+  retval = 0;
+  goto end;
+
+err:
+  retval = -1;
+  ldb_slice_destroy(key_slice);
+  goto end;
+
+end:
+  ldb_bytes_destroy(bytes);
+  return retval; 
 }
 
 static void encode_zset_key(const char* name, size_t namelen, const char* key, size_t keylen, ldb_slice_t** pslice){
@@ -35,7 +62,8 @@ static void encode_zset_key(const char* name, size_t namelen, const char* key, s
   *pslice = slice;
 }
 
-static void decode_zset_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice_name, ldb_slice_t** pslice_key){
+static int decode_zset_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice_name, ldb_slice_t** pslice_key){
+  int retval = 0;
   ldb_bytes_t *bytes = ldb_bytes_create(ldbkey, ldbkeylen);
   if(ldb_bytes_skip(bytes, strlen(LDB_DATA_TYPE_ZSET)) == -1){
     goto err;
@@ -51,20 +79,20 @@ static void decode_zset_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** 
   goto nor;
 
 err:
-  if(slice_name != NULL){
-    ldb_slice_destroy(slice_name);
-  }
-  if(slice_key != NULL){
-    ldb_slice_destroy(slice_key);
-  }
+  ldb_slice_destroy(slice_name);
+  ldb_slice_destroy(slice_key);
+  retval = -1;
   goto end;
 
 nor:
   *pslice_name = slice_name;
   *pslice_key = slice_key;
+  retval = 0;
   goto end;
+
 end:
-  return;
+  ldb_bytes_destroy(bytes);
+  return retval;
 }
 
 static void encode_zscore_key(const char* name, size_t namelen, const char* key, size_t keylen, const char* score, size_t scorelen){
@@ -84,7 +112,8 @@ static void encode_zscore_key(const char* name, size_t namelen, const char* key,
   ldb_slice_push_back(slice, key, keylen); 
 }
 
-static void decode_zscore_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice_name, ldb_slice_t** pslice_key, ldb_slice_t** pslice_score){
+static int decode_zscore_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice_name, ldb_slice_t** pslice_key, ldb_slice_t** pslice_score){
+  int retval = 0;
   ldb_bytes_t *bytes = ldb_bytes_create(ldbkey, ldbkeylen);
   if(ldb_bytes_skip(bytes, strlen(LDB_DATA_TYPE_ZSCORE) == -1)){
     goto err;
@@ -115,23 +144,38 @@ static void decode_zscore_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t*
   goto nor;
 
 err:
-  if(slice_name != NULL){
-    ldb_slice_destroy(slice_name);
-  }
-  if(slice_key != NULL){
-    ldb_slice_destroy(slice_key);
-  }
-  if(slice_score != NULL){
-    ldb_slice_destroy(slice_score);
-  }
+  ldb_slice_destroy(slice_name);
+  ldb_slice_destroy(slice_key);
+  ldb_slice_destroy(slice_score);
+  retval = -1;
   goto end;
 
 nor:
   *pslice_name = slice_name;
   *pslice_key = slice_key;
   *pslice_score = slice_score;
+  retval = 0;
   goto end;
 
 end:
-  return;
+  ldb_bytes_destroy(bytes);
+  return retval;
+}
+
+static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, int64_t score){
+  if(ldb_slice_size(name)==0 || ldb_slice_size(key)==0){
+    //fprintf(stderr, "");
+    return 0;
+  }
+  return 0; 
+}
+
+
+
+static int zset_del(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key){
+  return 0;
+}
+
+static int zset_incr_size(ldb_context_t *context, const ldb_slice_t* name, int64_t by){
+  return 0;
 }
