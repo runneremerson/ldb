@@ -3,6 +3,7 @@
 #include "ldb_context.h"
 #include "ldb_meta.h"
 #include "ldb_bytes.h"
+#include "t_kv.h"
 
 #include <leveldb/c.h>
 #include <string.h>
@@ -34,9 +35,7 @@ nor:
   retval = 0;
   goto end;
 err:
-  if(slice_key != NULL){
-    ldb_slice_destroy(slice_key);
-  }
+  ldb_slice_destroy(slice_key);
   retval = -1;
   goto end; 
 end: 
@@ -45,16 +44,18 @@ end:
 }
 
 int string_set(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta){
+  leveldb_mutex_lock(context->mutex_);
+  int retval = LDB_OK;
   if(ldb_slice_size(key) == 0){
     fprintf(stderr, "empty key!\n");
-    return 0;
+    retval = LDB_ERR;
+    goto end;
   }
   char *errptr = NULL;
   leveldb_writeoptions_t* writeoptions = leveldb_writeoptions_create();
   ldb_slice_t *slice_key = NULL;
   encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice_key);
-  ldb_slice_t *slice_val = NULL;
-  slice_val = ldb_meta_slice_create(meta);
+  ldb_slice_t *slice_val = ldb_meta_slice_create(meta);
   ldb_slice_push_back( slice_val , ldb_slice_data(value), ldb_slice_size(value));
   leveldb_put(context->database_, 
               writeoptions, 
@@ -69,35 +70,128 @@ int string_set(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t
   if(errptr != NULL){
     fprintf(stderr, "leveldb_put fail %s.\n", errptr);
     leveldb_free(errptr);
-    return -1;
+    retval = LDB_ERR;
+    goto end;
   }
-  return 1;
+  retval = LDB_OK;
+
+end:
+  leveldb_mutex_unlock(context->mutex_);
+  return retval;
 }
 
 int string_setnx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta){
-  
+  leveldb_mutex_lock(context->mutex_);
+  int retval = LDB_OK;
+  if(ldb_slice_size(key) == 0){
+    fprintf(stderr, "empty key!\n");
+    retval = LDB_ERR;
+    goto end;
+  }
+  //get
+  ldb_slice_t *slice_value = NULL;
+  int found = string_get(context, key, &slice_value);
+  if(found == LDB_OK){
+    retval = LDB_OK_BUT_ALREADY_EXIST;
+    goto end;
+  }
+  //set
+  char *errptr = NULL;
+  leveldb_writeoptions_t* writeoptions = leveldb_writeoptions_create();
+  ldb_slice_t *slice_key = NULL;
+  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice_key);
+  ldb_slice_t *slice_val = ldb_meta_slice_create(meta);
+  ldb_slice_push_back( slice_val , ldb_slice_data(value), ldb_slice_size(value));
+  leveldb_put(context->database_, 
+              writeoptions, 
+              ldb_slice_data(slice_key), 
+              ldb_slice_size(slice_key), 
+              ldb_slice_data(slice_val), 
+              ldb_slice_size(slice_val), 
+              &errptr);
+  leveldb_writeoptions_destroy(writeoptions);
+  ldb_slice_destroy(slice_key);
+  ldb_slice_destroy(slice_val);
+  if(errptr != NULL){
+    fprintf(stderr, "leveldb_put fail %s.\n", errptr);
+    leveldb_free(errptr);
+    retval = LDB_ERR;
+    goto end;
+  }
+  retval = LDB_OK; 
+
+end:
+  leveldb_mutex_unlock(context->mutex_);
+  return retval;
 }
 
 int string_setxx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta){
+  leveldb_mutex_lock(context->mutex_);
+  int retval = LDB_OK;
+  if(ldb_slice_size(key) == 0){
+    fprintf(stderr, "empty key!\n");
+    retval = LDB_ERR;
+    goto end;
+  }
+  //get
+  ldb_slice_t *slice_value = NULL;
+  int found = string_get(context, key, &slice_value);
+  if(found != LDB_OK){
+    retval = LDB_OK_NOT_EXIST;
+    goto end;
+  }
+  //set
+  char *errptr = NULL;
+  leveldb_writeoptions_t* writeoptions = leveldb_writeoptions_create();
+  ldb_slice_t *slice_key = NULL;
+  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice_key);
+  ldb_slice_t *slice_val = ldb_meta_slice_create(meta);
+  ldb_slice_push_back( slice_val , ldb_slice_data(value), ldb_slice_size(value));
+  leveldb_put(context->database_, 
+              writeoptions, 
+              ldb_slice_data(slice_key), 
+              ldb_slice_size(slice_key), 
+              ldb_slice_data(slice_val), 
+              ldb_slice_size(slice_val), 
+              &errptr);
+  leveldb_writeoptions_destroy(writeoptions);
+  ldb_slice_destroy(slice_key);
+  ldb_slice_destroy(slice_val);
+  if(errptr != NULL){
+    fprintf(stderr, "leveldb_put fail %s.\n", errptr);
+    leveldb_free(errptr);
+    retval = LDB_ERR;
+    goto end;
+  }
+  retval = LDB_OK; 
+end:
+  leveldb_mutex_unlock(context->mutex_);
+  return retval;
 }
 
 int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pvalue){
   char *val, *errptr = NULL;
   size_t vallen = 0;
   leveldb_readoptions_t* readoptions = leveldb_readoptions_create();
-  ldb_slice_t *slice = NULL;
-  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice);
-  val = leveldb_get(context->database_, readoptions, ldb_slice_data(slice), ldb_slice_size(slice), &vallen, &errptr);
+  ldb_slice_t *slice_key = NULL;
+  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice_key);
+  val = leveldb_get(context->database_, readoptions, ldb_slice_data(slice_key), ldb_slice_size(slice_key), &vallen, &errptr);
   leveldb_readoptions_destroy(readoptions);
-  ldb_slice_destroy(slice);
+  ldb_slice_destroy(slice_key);
+  int retval = LDB_OK;
   if(errptr != NULL){
     fprintf(stderr, "leveldb_get fail %s.\n", errptr);
     leveldb_free(errptr);
-    return -1;
+    retval = LDB_ERR;
+    goto end;
   }
   if(val != NULL){
     *pvalue = ldb_slice_create(val, vallen);
     leveldb_free(val);
   }
-  return 1;
+  retval = LDB_OK;
+
+end:
+  return retval;
 }
+

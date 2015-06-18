@@ -91,6 +91,10 @@ int decode_slice_value(const ldb_slice_t* slice_val, value_item_t* item){
 int ldb_set(ldb_context_t* context, uint32_t area, char* key, size_t keylen, uint64_t lastver, int vercare, long exptime, value_item_t* item, int en);
 int ldb_get(ldb_context_t* context, uint32_t area, char* key, size_t keylen, value_item_t** item);
 
+//hash
+
+//zset
+
 
 
 
@@ -103,14 +107,13 @@ int ldb_set(ldb_context_t* context, uint32_t area, char* key, size_t keylen, uin
   slice_val = ldb_slice_create(item->data_, item->data_len_);
   ldb_meta_t *meta = ldb_meta_create(vercare, lastver, item->version_);
   if(en == IS_NOT_EXIST){
-    goto end;
+    retval = string_setnx(context, slice_key, slice_val, meta);
   } else if(en == IS_EXIST){
-    goto end;
+    retval = string_setxx(context, slice_key, slice_val, meta);
   } else if(en == IS_EXIST_AND_EXPIRE){
-    goto end;
   } else if(en == IS_NOT_EXIST_AND_EXPIRE){
-    goto end;
   }
+
 end:
   ldb_slice_destroy(slice_key);
   ldb_slice_destroy(slice_val);

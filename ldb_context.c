@@ -57,18 +57,27 @@ err:
 }
 
 void ldb_context_destroy( ldb_context_t* context){
-    assert(context!=NULL);
-    leveldb_close(context->database_);
-    leveldb_options_destroy(context->options_);
-    leveldb_filterpolicy_destroy(context->filtter_policy_);
-    leveldb_cache_destroy(context->block_cache_);
-    leveldb_mutex_destroy(context->mutex_);
-    leveldb_writebatch_destroy(context->batch_);
+    if(context!=NULL){
+        leveldb_close(context->database_);
+        leveldb_options_destroy(context->options_);
+        leveldb_filterpolicy_destroy(context->filtter_policy_);
+        leveldb_cache_destroy(context->block_cache_);
+        leveldb_mutex_destroy(context->mutex_);
+        leveldb_writebatch_destroy(context->batch_);
+    }
     lfree(context);
 }
 
-void ldb_context_commit_writebatch(ldb_context_t* context, char** errptr){
+void ldb_context_writebatch_commit(ldb_context_t* context, char** errptr){
     leveldb_writeoptions_t *writeoptions = leveldb_writeoptions_create();
     leveldb_write(context->database_, writeoptions, context->batch_, errptr);
     leveldb_writeoptions_destroy(writeoptions);
+}
+
+void ldb_context_writebatch_put(ldb_context_t* context, const char* key, size_t klen, const char* val, size_t vlen){
+    leveldb_writebatch_put(context->batch_, key, klen, val, vlen);
+}
+
+void ldb_context_writebatch_delete(ldb_context_t* context, const char* key, size_t klen){
+    leveldb_writebatch_delete(context->batch_, key, klen);
 }
