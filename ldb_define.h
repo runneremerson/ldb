@@ -1,6 +1,9 @@
 #ifndef LDB_LEVELDB_DEFINE_H
 #define LDB_LEVELDB_DEFINE_H
 
+#define LDB_VALUE_TYPE_DEL                   0x0
+#define LDB_VALUE_TYPE_VAL                   0x1
+
 #define LDB_SCORE_WIDTH                      9
 #define LDB_KEY_LEN_MAX                      255
 

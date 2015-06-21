@@ -4,17 +4,18 @@
 #include "ldb_context.h"
 #include "t_zset.h"
 
-#include <leveldb/c.h>
+#include <leveldb-ldb/c.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 #include <string.h>
 
 static const char* LDB_SCORE_MIN = "-9223372036854775808";
 static const char* LDB_SCORE_MAX = "+9223372036854775807";
 
-static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, int64_t score);
+static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_slice_t* meta, int64_t score);
 
-static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key);
+static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_slice_t* meta);
 
 static int zset_incr_size(ldb_context_t *context, const ldb_slice_t* name, int64_t by);
 
@@ -174,14 +175,22 @@ int zset_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t*
     goto end;
   }
   if(val != NULL){
-    if(vallen < sizeof(int64_t)){
-      fprintf(stderr, "score with size=%ld, but vall=%ld\n", sizeof(int64_t), vallen);
+    size_t mat_size = 1+8;
+    assert(vallen >= mat_size);
+    if(vallen < sizeof(int64_t)+mat_size){
+      fprintf(stderr, "score with size=%ld, but vall=%ld\n", sizeof(int64_t), vallen-mat_size);
       retval = LDB_ERR;
-      goto end;
+    }else{
+      uint8_t type = leveldb_decode_fixed8(val);
+      if(type == LDB_VALUE_TYPE_VAL){
+        *score = leveldb_decode_fixed64(val);
+        retval = LDB_OK;
+      }else{
+        retval = LDB_OK_NOT_EXIST;
+      }
     }
-    *score = leveldb_decode_fixed64(val);
     leveldb_free(val);
-    retval = LDB_OK;
+    goto end;
   }else{
     retval = LDB_OK_NOT_EXIST;
   }
@@ -191,7 +200,8 @@ end:
 
 
 
-static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, int64_t score){
+//TODO meta slice
+static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_slice_t* meta, int64_t score){
   if(ldb_slice_size(name)==0 || ldb_slice_size(key)==0){
     fprintf(stderr, "empty name or key!");
     return 0;
@@ -257,7 +267,7 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_s
 
 
 
-static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key){
+static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_slice_t* meta){
   if(ldb_slice_size(name) > LDB_KEY_LEN_MAX){
     fprintf(stderr, "name too long!");
     return -1;

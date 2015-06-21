@@ -5,9 +5,10 @@
 #include "ldb_bytes.h"
 #include "t_kv.h"
 
-#include <leveldb/c.h>
+#include <leveldb-ldb/c.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <stdio.h>
 
 
@@ -55,18 +56,18 @@ int string_set(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t
   leveldb_writeoptions_t* writeoptions = leveldb_writeoptions_create();
   ldb_slice_t *slice_key = NULL;
   encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice_key);
-  ldb_slice_t *slice_val = ldb_meta_slice_create(meta);
-  ldb_slice_push_back( slice_val , ldb_slice_data(value), ldb_slice_size(value));
+  ldb_slice_t *slice_mat = ldb_meta_slice_create(meta);
+  ldb_slice_push_front( slice_key , ldb_slice_data(slice_mat), ldb_slice_size(slice_mat));
   leveldb_put(context->database_, 
               writeoptions, 
               ldb_slice_data(slice_key), 
               ldb_slice_size(slice_key), 
-              ldb_slice_data(slice_val), 
-              ldb_slice_size(slice_val), 
+              ldb_slice_data(value), 
+              ldb_slice_size(value), 
               &errptr);
   leveldb_writeoptions_destroy(writeoptions);
   ldb_slice_destroy(slice_key);
-  ldb_slice_destroy(slice_val);
+  ldb_slice_destroy(slice_mat);
   if(errptr != NULL){
     fprintf(stderr, "leveldb_put fail %s.\n", errptr);
     leveldb_free(errptr);
@@ -100,18 +101,18 @@ int string_setnx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
   leveldb_writeoptions_t* writeoptions = leveldb_writeoptions_create();
   ldb_slice_t *slice_key = NULL;
   encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice_key);
-  ldb_slice_t *slice_val = ldb_meta_slice_create(meta);
-  ldb_slice_push_back( slice_val , ldb_slice_data(value), ldb_slice_size(value));
+  ldb_slice_t *slice_mat = ldb_meta_slice_create(meta);
+  ldb_slice_push_front( slice_key , ldb_slice_data(slice_mat), ldb_slice_size(slice_mat));
   leveldb_put(context->database_, 
               writeoptions, 
               ldb_slice_data(slice_key), 
               ldb_slice_size(slice_key), 
-              ldb_slice_data(slice_val), 
-              ldb_slice_size(slice_val), 
+              ldb_slice_data(value), 
+              ldb_slice_size(value), 
               &errptr);
   leveldb_writeoptions_destroy(writeoptions);
   ldb_slice_destroy(slice_key);
-  ldb_slice_destroy(slice_val);
+  ldb_slice_destroy(slice_mat);
   if(errptr != NULL){
     fprintf(stderr, "leveldb_put fail %s.\n", errptr);
     leveldb_free(errptr);
@@ -145,18 +146,18 @@ int string_setxx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
   leveldb_writeoptions_t* writeoptions = leveldb_writeoptions_create();
   ldb_slice_t *slice_key = NULL;
   encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice_key);
-  ldb_slice_t *slice_val = ldb_meta_slice_create(meta);
-  ldb_slice_push_back( slice_val , ldb_slice_data(value), ldb_slice_size(value));
+  ldb_slice_t *slice_mat = ldb_meta_slice_create(meta);
+  ldb_slice_push_front( slice_key , ldb_slice_data(slice_mat), ldb_slice_size(slice_mat));
   leveldb_put(context->database_, 
               writeoptions, 
               ldb_slice_data(slice_key), 
               ldb_slice_size(slice_key), 
-              ldb_slice_data(slice_val), 
-              ldb_slice_size(slice_val), 
+              ldb_slice_data(value), 
+              ldb_slice_size(value), 
               &errptr);
   leveldb_writeoptions_destroy(writeoptions);
   ldb_slice_destroy(slice_key);
-  ldb_slice_destroy(slice_val);
+  ldb_slice_destroy(slice_mat);
   if(errptr != NULL){
     fprintf(stderr, "leveldb_put fail %s.\n", errptr);
     leveldb_free(errptr);
@@ -186,10 +187,20 @@ int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pva
     goto end;
   }
   if(val != NULL){
-    *pvalue = ldb_slice_create(val, vallen);
+    size_t mat_size = 1+8;
+    assert(vallen>= mat_size);
+    uint8_t type = leveldb_decode_fixed8(val);
+    if(type == LDB_VALUE_TYPE_VAL){
+      *pvalue = ldb_slice_create(val+1, vallen-1);
+      retval = LDB_OK;
+    }else{
+      retval = LDB_OK_NOT_EXIST;
+    }
     leveldb_free(val);
+    goto end;
+  }else{
+    retval = LDB_OK_NOT_EXIST;
   }
-  retval = LDB_OK;
 
 end:
   return retval;

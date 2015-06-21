@@ -75,7 +75,7 @@ int set_ldb_signal_handler(const char* name){
 }
 
 int decode_slice_value(const ldb_slice_t* slice_val, value_item_t* item){
-  if(ldb_slice_size(slice_val) < sizeof(uint64_t)){
+  if(ldb_slice_size(slice_val) <  sizeof(uint64_t) ){
     return -1;
   }
   uint64_t version = leveldb_decode_fixed64(ldb_slice_data(slice_val));
