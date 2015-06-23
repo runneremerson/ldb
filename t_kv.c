@@ -13,8 +13,9 @@
 
 
 
-static void encode_kv_key(const char* key, size_t keylen, ldb_slice_t** pslice){
-  ldb_slice_t* slice = ldb_slice_create(LDB_DATA_TYPE_KV, 1);
+static void encode_kv_key(const char* key, size_t keylen, const ldb_meta_t* meta, ldb_slice_t** pslice){
+  ldb_slice_t* slice = ldb_meta_slice_create(meta);
+  ldb_slice_push_back(slice, LDB_DATA_TYPE_KV, strlen(LDB_DATA_TYPE_KV));
   ldb_slice_push_back(slice, key, keylen);
   *pslice =  slice;
 }
@@ -55,9 +56,7 @@ int string_set(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t
   char *errptr = NULL;
   leveldb_writeoptions_t* writeoptions = leveldb_writeoptions_create();
   ldb_slice_t *slice_key = NULL;
-  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice_key);
-  ldb_slice_t *slice_mat = ldb_meta_slice_create(meta);
-  ldb_slice_push_front( slice_key , ldb_slice_data(slice_mat), ldb_slice_size(slice_mat));
+  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), meta, &slice_key);
   leveldb_put(context->database_, 
               writeoptions, 
               ldb_slice_data(slice_key), 
@@ -67,7 +66,6 @@ int string_set(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t
               &errptr);
   leveldb_writeoptions_destroy(writeoptions);
   ldb_slice_destroy(slice_key);
-  ldb_slice_destroy(slice_mat);
   if(errptr != NULL){
     fprintf(stderr, "leveldb_put fail %s.\n", errptr);
     leveldb_free(errptr);
@@ -100,9 +98,7 @@ int string_setnx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
   char *errptr = NULL;
   leveldb_writeoptions_t* writeoptions = leveldb_writeoptions_create();
   ldb_slice_t *slice_key = NULL;
-  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice_key);
-  ldb_slice_t *slice_mat = ldb_meta_slice_create(meta);
-  ldb_slice_push_front( slice_key , ldb_slice_data(slice_mat), ldb_slice_size(slice_mat));
+  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), meta, &slice_key);
   leveldb_put(context->database_, 
               writeoptions, 
               ldb_slice_data(slice_key), 
@@ -112,7 +108,6 @@ int string_setnx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
               &errptr);
   leveldb_writeoptions_destroy(writeoptions);
   ldb_slice_destroy(slice_key);
-  ldb_slice_destroy(slice_mat);
   if(errptr != NULL){
     fprintf(stderr, "leveldb_put fail %s.\n", errptr);
     leveldb_free(errptr);
@@ -145,9 +140,7 @@ int string_setxx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
   char *errptr = NULL;
   leveldb_writeoptions_t* writeoptions = leveldb_writeoptions_create();
   ldb_slice_t *slice_key = NULL;
-  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice_key);
-  ldb_slice_t *slice_mat = ldb_meta_slice_create(meta);
-  ldb_slice_push_front( slice_key , ldb_slice_data(slice_mat), ldb_slice_size(slice_mat));
+  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), meta, &slice_key);
   leveldb_put(context->database_, 
               writeoptions, 
               ldb_slice_data(slice_key), 
@@ -157,7 +150,6 @@ int string_setxx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
               &errptr);
   leveldb_writeoptions_destroy(writeoptions);
   ldb_slice_destroy(slice_key);
-  ldb_slice_destroy(slice_mat);
   if(errptr != NULL){
     fprintf(stderr, "leveldb_put fail %s.\n", errptr);
     leveldb_free(errptr);
@@ -175,7 +167,7 @@ int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pva
   size_t vallen = 0;
   leveldb_readoptions_t* readoptions = leveldb_readoptions_create();
   ldb_slice_t *slice_key = NULL;
-  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice_key);
+  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), NULL, &slice_key);
   val = leveldb_get(context->database_, readoptions, ldb_slice_data(slice_key), ldb_slice_size(slice_key), &vallen, &errptr);
   leveldb_readoptions_destroy(readoptions);
   ldb_slice_destroy(slice_key);

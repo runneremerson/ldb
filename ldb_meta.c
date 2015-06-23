@@ -37,13 +37,28 @@ uint64_t ldb_meta_nextver(const ldb_meta_t* meta){
 }
 
 ldb_slice_t* ldb_meta_slice_create(const ldb_meta_t* meta){
-  char struint32[sizeof(uint32_t)] = {0};
-  char struint64[sizeof(uint64_t)] = {0};
-  leveldb_encode_fixed32(struint32, meta->vercare_);
-  leveldb_encode_fixed64(struint64, meta->lastver_);
-  ldb_slice_t *slice = ldb_slice_create(struint32, sizeof(uint32_t));
-  ldb_slice_push_back(slice, struint64, sizeof(uint64_t));
-  leveldb_encode_fixed64(struint64, meta->nextver_); 
-  ldb_slice_push_back(slice, struint64, sizeof(uint64_t));
+  char strvercare[sizeof(uint32_t)] = {0};
+  char strlastver[sizeof(uint64_t)] = {0};
+  char strnextver[sizeof(uint64_t)] = {0};
+  if(meta != NULL){
+    leveldb_encode_fixed32(strvercare, meta->vercare_);
+    leveldb_encode_fixed64(strlastver, meta->lastver_);
+    leveldb_encode_fixed64(strnextver, meta->nextver_); 
+  }else{
+    leveldb_encode_fixed32(strvercare, 0);
+    leveldb_encode_fixed64(strlastver, 0);
+    leveldb_encode_fixed64(strnextver, 0); 
+  }
+  ldb_slice_t *slice = ldb_slice_create(strvercare, sizeof(uint32_t));
+  ldb_slice_push_back(slice, strlastver, sizeof(uint64_t));
+  ldb_slice_push_back(slice, strnextver, sizeof(uint64_t));
   return slice;
+}
+
+void ldb_meta_encode(char* buf, uint32_t vercare, uint64_t lastver, uint64_t nextver){
+  leveldb_encode_fixed32(buf, vercare);
+  buf += sizeof(uint32_t);
+  leveldb_encode_fixed64(buf, lastver);
+  buf += sizeof(uint64_t);
+  leveldb_encode_fixed64(buf, nextver);
 }

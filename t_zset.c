@@ -1,6 +1,7 @@
 #include "ldb_define.h"
 #include "ldb_slice.h"
 #include "ldb_bytes.h"
+#include "ldb_meta.h"
 #include "ldb_context.h"
 #include "t_zset.h"
 
@@ -13,14 +14,15 @@
 static const char* LDB_SCORE_MIN = "-9223372036854775808";
 static const char* LDB_SCORE_MAX = "+9223372036854775807";
 
-static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_slice_t* meta, int64_t score);
+static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t score);
 
-static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_slice_t* meta);
+static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta);
 
-static int zset_incr_size(ldb_context_t *context, const ldb_slice_t* name, int64_t by);
+static int zset_incr_size(ldb_context_t *context, const ldb_slice_t* name, const ldb_meta_t* meta, int64_t by);
 
-static void encode_zsize_key(const char* name, size_t namelen, ldb_slice_t** pslice){
-  ldb_slice_t* slice = ldb_slice_create(LDB_DATA_TYPE_ZSIZE, strlen(LDB_DATA_TYPE_ZSIZE));
+static void encode_zsize_key(const char* name, size_t namelen, const ldb_meta_t* meta, ldb_slice_t** pslice){
+  ldb_slice_t* slice = ldb_meta_slice_create(meta);
+  ldb_slice_push_back(slice, LDB_DATA_TYPE_ZSIZE, strlen(LDB_DATA_TYPE_ZSIZE));
   ldb_slice_push_back(slice, name, namelen);
   *pslice = slice;
 }
@@ -52,9 +54,10 @@ end:
   return retval; 
 }
 
-static void encode_zset_key(const char* name, size_t namelen, const char* key, size_t keylen, ldb_slice_t** pslice){
+static void encode_zset_key(const char* name, size_t namelen, const char* key, size_t keylen, const ldb_meta_t* meta, ldb_slice_t** pslice){
   uint8_t len = 0;
-  ldb_slice_t* slice = ldb_slice_create(LDB_DATA_TYPE_ZSET, strlen(LDB_DATA_TYPE_ZSET));
+  ldb_slice_t* slice = ldb_meta_slice_create(meta);
+  ldb_slice_push_back(slice, LDB_DATA_TYPE_ZSET, strlen(LDB_DATA_TYPE_ZSET));
   len = (uint8_t)namelen;
   ldb_slice_push_back(slice, (const char*)(&len), sizeof(uint8_t));
   ldb_slice_push_back(slice, name, namelen);
@@ -96,9 +99,10 @@ end:
   return retval;
 }
 
-static void encode_zscore_key(const char* name, size_t namelen, const char* key, size_t keylen, int64_t score, ldb_slice_t** pslice){
+static void encode_zscore_key(const char* name, size_t namelen, const char* key, size_t keylen, const ldb_meta_t* meta, int64_t score, ldb_slice_t** pslice){
   uint8_t len = 0;
-  ldb_slice_t *slice = ldb_slice_create(LDB_DATA_TYPE_ZSCORE, strlen(LDB_DATA_TYPE_ZSCORE));
+  ldb_slice_t *slice = ldb_meta_slice_create(meta);
+  ldb_slice_push_back(slice, LDB_DATA_TYPE_ZSCORE, strlen(LDB_DATA_TYPE_ZSCORE));
   len = (uint8_t)namelen;
   ldb_slice_push_back(slice, (const char*)(&len), sizeof(uint8_t));
   ldb_slice_push_back(slice, name, namelen);
@@ -163,7 +167,7 @@ int zset_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t*
   size_t vallen = 0;
   leveldb_readoptions_t* readoptions = leveldb_readoptions_create();
   ldb_slice_t *slice_key = NULL;
-  encode_zset_key(ldb_slice_data(name), ldb_slice_size(name), ldb_slice_data(key), ldb_slice_size(key), &slice_key); 
+  encode_zset_key(ldb_slice_data(name), ldb_slice_size(name), ldb_slice_data(key), ldb_slice_size(key), NULL, &slice_key); 
   val = leveldb_get(context->database_, readoptions, ldb_slice_data(slice_key), ldb_slice_size(slice_key), &vallen, &errptr);
   leveldb_readoptions_destroy(readoptions);
   ldb_slice_destroy(slice_key);
@@ -183,6 +187,7 @@ int zset_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t*
     }else{
       uint8_t type = leveldb_decode_fixed8(val);
       if(type == LDB_VALUE_TYPE_VAL){
+        val += 1;
         *score = leveldb_decode_fixed64(val);
         retval = LDB_OK;
       }else{
@@ -199,9 +204,48 @@ end:
 }
 
 
+int zset_size(ldb_context_t* context, const ldb_slice_t* name, uint64_t* size){
+  ldb_slice_t *slice_key = NULL;
+  encode_zsize_key(ldb_slice_data(name),
+                   ldb_slice_size(name),
+                   NULL,
+                   &slice_key);
+ 
+  char *val, *errptr = NULL;
+  size_t vallen = 0;
+  leveldb_readoptions_t* readoptions = leveldb_readoptions_create();
+  val = leveldb_get(context->database_, readoptions, ldb_slice_data(slice_key), ldb_slice_size(slice_key), &vallen, &errptr);
+  leveldb_readoptions_destroy(readoptions);
+  ldb_slice_destroy(slice_key);
+  int retval = LDB_OK;
+  if(errptr != NULL){
+    fprintf(stderr, "leveldb_get fail %s.\n", errptr);
+    leveldb_free(errptr);
+    retval = LDB_ERR;
+    goto end;
+  }
+  if(val != NULL){
+    size_t mat_size = 1+8;
+    assert(vallen >= mat_size);
+    if(vallen < sizeof(uint64_t)+mat_size){
+      fprintf(stderr, "zset size with size=%ld, but vall=%ld\n", sizeof(uint64_t), vallen-mat_size);
+      retval = LDB_ERR;
+    }else{
+      val += mat_size;
+      *size = leveldb_decode_fixed64(val);
+      retval = LDB_OK;
+    }
+    leveldb_free(val);
+    goto end;
+  }else{
+    retval = LDB_OK_NOT_EXIST;
+  }
+end:
+  return retval;
+}
 
-//TODO meta slice
-static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_slice_t* meta, int64_t score){
+
+static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t score){
   if(ldb_slice_size(name)==0 || ldb_slice_size(key)==0){
     fprintf(stderr, "empty name or key!");
     return 0;
@@ -225,6 +269,7 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_s
                         ldb_slice_size(name), 
                         ldb_slice_data(key), 
                         ldb_slice_size(key),
+                        NULL,
                         old_score,
                         &slice_key1);
 
@@ -237,20 +282,24 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_s
                       ldb_slice_size(name),
                       ldb_slice_data(key),
                       ldb_slice_size(key),
+                      NULL,
                       score,
                       &slice_key2);
 
     //add zscore key
+    ldb_slice_t *slice_val2 = ldb_slice_create(NULL, 0);
+
     ldb_context_writebatch_put(context,
                                ldb_slice_data(slice_key2),
                                ldb_slice_size(slice_key2),
-                               NULL,
-                               0);
+                               ldb_slice_data(slice_val2),
+                               ldb_slice_size(slice_val2));
     //update zset
     encode_zset_key(ldb_slice_data(name),
                     ldb_slice_size(name),
                     ldb_slice_data(key),
                     ldb_slice_size(key),
+                    meta,
                     &slice_key0);
 
     char buf[sizeof(int64_t)] = {0};
@@ -267,7 +316,7 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_s
 
 
 
-static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_slice_t* meta){
+static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta){
   if(ldb_slice_size(name) > LDB_KEY_LEN_MAX){
     fprintf(stderr, "name too long!");
     return -1;
@@ -286,6 +335,7 @@ static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_s
                     ldb_slice_size(name),
                     ldb_slice_data(key),
                     ldb_slice_size(key),
+                    NULL,
                     old_score,
                     &slice_key1);
 
@@ -297,6 +347,7 @@ static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_s
                   ldb_slice_size(name),
                   ldb_slice_data(key),
                   ldb_slice_size(key),
+                  meta,
                   &slice_key0);
 
   ldb_context_writebatch_delete(context,
@@ -305,13 +356,15 @@ static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_s
   return 1;
 }
 
-static int zset_incr_size(ldb_context_t *context, const ldb_slice_t* name, int64_t by){
-  int64_t size = zset_size(context, name);
+static int zset_incr_size(ldb_context_t *context, const ldb_slice_t* name, const ldb_meta_t* meta,  int64_t by){
+  uint64_t size = 0;
+  zset_size(context, name, &size);
   size += by;
   ldb_slice_t *slice_key = NULL;
 
   encode_zsize_key(ldb_slice_data(name),
                    ldb_slice_size(name),
+                   NULL,
                    &slice_key);
   if(size == 0){
     ldb_context_writebatch_delete(context,
