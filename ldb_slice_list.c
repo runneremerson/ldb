@@ -1,28 +1,36 @@
-#include "ldb_slice_list.h"
+#include "ldb_list.h"
 #include "ldb_slice.h"
+#include "ldb_meta.h"
+
 #include "lmalloc.h"
 
 #include <string.h>
 
 
-ldb_slice_node_t* ldb_slice_node_create(){
-  ldb_slice_node_t *node = lmalloc(sizeof(ldb_slice_node_t));
+ldb_list_node_t* ldb_list_node_create(){
+  ldb_list_node_t *node = lmalloc(sizeof(ldb_list_node_t));
   if(node == NULL ){
     return NULL;
   }
   node->next_ = NULL;
   node->prev_ = NULL;
-  node->slice_ = NULL;
+  node->type_ = 0;
+  node->value_ = 0;
+  node->data_ = NULL;
   return node;
 }
 
-void ldb_slice_node_destroy(ldb_slice_node_t* node){
-  ldb_slice_destroy(node->slice_);
+void ldb_list_node_destroy(ldb_list_node_t* node){
+  if(node->type_ == LDB_LIST_NODE_TYPE_SLICE){ 
+    ldb_slice_destroy(node->data_);
+  }else if(node->type_ == LDB_LIST_NODE_TYPE_META){
+    ldb_meta_destroy(node->data_);
+  }
   lfree(node);
 }
 
-ldb_slice_list_t* ldb_slice_list_create(){
-  ldb_slice_list_t *list = lmalloc(sizeof(ldb_slice_list_t));
+ldb_list_t* ldb_list_create(){
+  ldb_list_t *list = lmalloc(sizeof(ldb_list_t));
   if(list == NULL){
     return NULL;
   }
@@ -32,12 +40,12 @@ ldb_slice_list_t* ldb_slice_list_create(){
   return list;
 }
 
-void ldb_slice_list_destroy(ldb_slice_list_t* list){
+void ldb_list_destroy(ldb_list_t* list){
   if(list != NULL){
-    ldb_slice_node_t *node=NULL;
+    ldb_list_node_t *node=NULL;
     while(list->head_!=NULL){
       node = list->head_->next_;
-      ldb_slice_node_destroy(list->head_);
+      ldb_list_node_destroy(list->head_);
       list->length_ -= 1;
       list->head_ = node;
     }
@@ -45,7 +53,7 @@ void ldb_slice_list_destroy(ldb_slice_list_t* list){
   }
 }
 
-size_t rpush_ldb_slice_node(ldb_slice_list_t* list, ldb_slice_node_t* node){
+size_t rpush_ldb_list_node(ldb_list_t* list, ldb_list_node_t* node){
   if(list == NULL){
     return 0;
   }
@@ -64,7 +72,7 @@ size_t rpush_ldb_slice_node(ldb_slice_list_t* list, ldb_slice_node_t* node){
   return list->length_;
 }
 
-size_t lpush_ldb_slice_node(ldb_slice_list_t* list, ldb_slice_node_t* node){
+size_t lpush_ldb_list_node(ldb_list_t* list, ldb_list_node_t* node){
   if( list == NULL ){
     return 0;
   }
@@ -83,7 +91,7 @@ size_t lpush_ldb_slice_node(ldb_slice_list_t* list, ldb_slice_node_t* node){
   return list->length_;
 }
 
-static void remove_ldb_slice_node(ldb_slice_node_t* node){
+static void remove_ldb_list_node(ldb_list_node_t* node){
   if(node != NULL){
     if(node->prev_!=NULL){
       node->prev_->next_ = node->next_;
@@ -94,26 +102,26 @@ static void remove_ldb_slice_node(ldb_slice_node_t* node){
   }
 }
 
-ldb_slice_node_t* rpop_ldb_slice_node(ldb_slice_list_t* list){
+ldb_list_node_t* rpop_ldb_list_node(ldb_list_t* list){
   if(list == NULL){
     return NULL;
   }
-  remove_ldb_slice_node(list->head_);
-  ldb_slice_node_t* node = list->head_;
+  remove_ldb_list_node(list->head_);
+  ldb_list_node_t* node = list->head_;
   list->head_ = list->head_->next_;
   list->length_ -= 1;
   return node;
 }
 
-ldb_slice_node_t* lpop_ldb_slice_node(ldb_slice_list_t* list){
+ldb_list_node_t* lpop_ldb_list_node(ldb_list_t* list){
   if(list == NULL){
     return NULL;
   }
   if(list->length_==0){
     return NULL;
   }
-  remove_ldb_slice_node(list->tail_);
-  ldb_slice_node_t* node = list->tail_;
+  remove_ldb_list_node(list->tail_);
+  ldb_list_node_t* node = list->tail_;
   list->tail_ = list->tail_->prev_;
   list->length_ -= 1;
   return node;

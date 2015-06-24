@@ -90,6 +90,7 @@ int decode_slice_value(const ldb_slice_t* slice_val, value_item_t* item){
 //string
 int ldb_set(ldb_context_t* context, uint32_t area, char* key, size_t keylen, uint64_t lastver, int vercare, long exptime, value_item_t* item, int en);
 int ldb_get(ldb_context_t* context, uint32_t area, char* key, size_t keylen, value_item_t** item);
+int ldb_del(ldb_context_t* context, uint32_t area, char* key, size_t keylen, int vercare, uint64_t version);
 
 //hash
 
@@ -100,7 +101,6 @@ int ldb_get(ldb_context_t* context, uint32_t area, char* key, size_t keylen, val
 
 
 int ldb_set(ldb_context_t* context, uint32_t area, char* key, size_t keylen, uint64_t lastver, int vercare, long exptime, value_item_t* item, int en){
-  assert(key!=NULL);
   int retval = 0;
   ldb_slice_t *slice_key, *slice_val , *slice_value = NULL;
   slice_key = ldb_slice_create(key, keylen);
@@ -109,7 +109,7 @@ int ldb_set(ldb_context_t* context, uint32_t area, char* key, size_t keylen, uin
   if(en == IS_NOT_EXIST){
     retval = string_setnx(context, slice_key, slice_val, meta);
   } else if(en == IS_EXIST){
-    retval = string_setxx(context, slice_key, slice_val, meta);
+    retval = string_set(context, slice_key, slice_val, meta);
   } else if(en == IS_EXIST_AND_EXPIRE){
   } else if(en == IS_NOT_EXIST_AND_EXPIRE){
   }
@@ -124,12 +124,11 @@ end:
 }
 
 int ldb_get(ldb_context_t* context, uint32_t area, char* key, size_t keylen, value_item_t** item){
-  assert(key!=NULL);
   int retval = 0;
   ldb_slice_t *slice_key, *slice_val = NULL;
   slice_key = ldb_slice_create(key, keylen);
-  if(string_get(context, slice_key, &slice_val)==-1){
-    retval = LDB_OK_NOT_EXIST;
+  retval = string_get(context, slice_key, &slice_val);
+  if(retval != LDB_OK){
     goto end;
   }
   *item = create_value_item_array(1);
@@ -144,4 +143,18 @@ end:
 
   return retval;
 }
+
+
+int ldb_del(ldb_context_t* context, uint32_t area, char* key, size_t keylen, int vercare, uint64_t version){
+  int retval = 0;
+  ldb_slice_t *slice_key = ldb_slice_create(key, keylen);
+  ldb_meta_t *meta = ldb_meta_create(vercare, 0, version);
+  retval = string_del(context, slice_key, meta);
+
+end:
+  ldb_slice_destroy(slice_key);
+  ldb_meta_destroy(meta);
+  return retval;
+}
+
 #endif //LDB_SESSION_H

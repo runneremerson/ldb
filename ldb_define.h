@@ -4,6 +4,9 @@
 #define LDB_VALUE_TYPE_DEL                   0x0
 #define LDB_VALUE_TYPE_VAL                   0x1
 
+#define LDB_VAL_META_SIZE                    9
+#define LDB_VAL_TYPE_SIZE                    1
+
 #define LDB_SCORE_WIDTH                      9
 #define LDB_KEY_LEN_MAX                      255
 
@@ -13,6 +16,11 @@
 #define LDB_DATA_TYPE_ZSET                   "s"
 #define LDB_DATA_TYPE_ZSCORE                 "z"
 #define LDB_DATA_TYPE_ZSIZE                  "Z"
+
+
+#define LDB_LIST_NODE_TYPE_BASE              0
+#define LDB_LIST_NODE_TYPE_SLICE             1
+#define LDB_LIST_NODE_TYPE_META              2
 
 
 

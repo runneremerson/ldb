@@ -18,7 +18,7 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_s
 
 static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta);
 
-static int zset_incr_size(ldb_context_t *context, const ldb_slice_t* name, const ldb_meta_t* meta, int64_t by);
+static int zset_incr_size(ldb_context_t *context, const ldb_slice_t* name, int64_t by);
 
 static void encode_zsize_key(const char* name, size_t namelen, const ldb_meta_t* meta, ldb_slice_t** pslice){
   ldb_slice_t* slice = ldb_meta_slice_create(meta);
@@ -162,6 +162,64 @@ end:
   return retval;
 }
 
+
+int zset_add(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t score){
+  leveldb_mutex_lock(context->mutex_);
+  int ret = zset_one(context, name, key, meta, score);
+  int retval = LDB_OK;
+  if(ret >= 0){
+    if(ret > 0){
+      if(zset_incr_size(context, name, ret) == -1){
+        retval = LDB_ERR;
+        goto end;
+      }
+    }
+    char* errptr = NULL;
+    ldb_context_writebatch_commit(context, &errptr);
+    if( errptr != NULL){
+      fprintf(stderr, "write writebatch fail %s.\n", errptr);
+      leveldb_free(errptr);
+      retval = LDB_ERR;
+      goto end; 
+    }
+    retval = LDB_OK;
+  }else{
+    retval = LDB_ERR;
+  }
+
+end:
+  leveldb_mutex_unlock(context->mutex_);
+  return retval;
+}
+
+int zset_del(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta){
+  leveldb_mutex_lock(context->mutex_);
+  int ret = zdel_one(context, name, key, meta);
+  int retval = LDB_OK; 
+  if(ret >= 0){
+    if(ret > 0){
+      if(zset_incr_size(context, name, -ret) == -1){
+        retval = LDB_ERR;
+        goto end;
+      }
+    }
+    char* errptr = NULL;
+    ldb_context_writebatch_commit(context, &errptr);
+    if( errptr != NULL ){
+      fprintf(stderr, "write writebatch fail %s.\n", errptr);
+      leveldb_free(errptr);
+      retval = LDB_ERR;
+      goto end; 
+    }
+    retval = LDB_OK;
+  }else{
+    retval = LDB_ERR;
+  }
+end:
+  leveldb_mutex_unlock(context->mutex_);
+  return retval;
+}
+
 int zset_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, int64_t* score){ 
   char *val, *errptr = NULL;
   size_t vallen = 0;
@@ -179,15 +237,14 @@ int zset_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t*
     goto end;
   }
   if(val != NULL){
-    size_t mat_size = 1+8;
-    assert(vallen >= mat_size);
-    if(vallen < sizeof(int64_t)+mat_size){
-      fprintf(stderr, "score with size=%ld, but vall=%ld\n", sizeof(int64_t), vallen-mat_size);
+    assert(vallen >= LDB_VAL_META_SIZE);
+    if(vallen < sizeof(int64_t) + LDB_VAL_META_SIZE){
+      fprintf(stderr, "score with size=%ld, but vall=%ld\n", sizeof(int64_t), vallen - LDB_VAL_META_SIZE);
       retval = LDB_ERR;
     }else{
       uint8_t type = leveldb_decode_fixed8(val);
       if(type == LDB_VALUE_TYPE_VAL){
-        val += 1;
+        val += LDB_VAL_META_SIZE;
         *score = leveldb_decode_fixed64(val);
         retval = LDB_OK;
       }else{
@@ -200,6 +257,45 @@ int zset_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t*
     retval = LDB_OK_NOT_EXIST;
   }
 end:
+  return retval;
+}
+
+int zset_incr(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t by, int64_t* val){
+  leveldb_mutex_lock(context->mutex_);
+  int64_t old_score = 0;
+  int ret = zset_get(context, name, key, &old_score);
+  int retval = LDB_OK;
+  if(ret == LDB_OK){
+    *val = old_score + by;
+  }else if(ret = LDB_OK_NOT_EXIST){
+    *val = by;
+  }else{
+    retval = ret;
+    goto end;
+  }
+  ret = zset_one(context, name, key, meta, *val);
+  if(ret >= 0){
+    if(ret > 0){
+      if(zset_incr_size(context, name, ret) == -1){
+        retval = LDB_ERR;
+        goto end;
+      }
+    }
+    char* errptr = NULL;
+    ldb_context_writebatch_commit(context, &errptr);
+    if(errptr!=NULL){
+      fprintf(stderr, "leveldb_get fail %s.\n", errptr);
+      leveldb_free(errptr);
+      retval = LDB_ERR;
+      goto end;
+    }
+    retval = LDB_OK;
+  }else{
+    retval = LDB_ERR;
+  }
+  
+end:
+  leveldb_mutex_unlock(context->mutex_);
   return retval;
 }
 
@@ -225,13 +321,12 @@ int zset_size(ldb_context_t* context, const ldb_slice_t* name, uint64_t* size){
     goto end;
   }
   if(val != NULL){
-    size_t mat_size = 1+8;
-    assert(vallen >= mat_size);
-    if(vallen < sizeof(uint64_t)+mat_size){
-      fprintf(stderr, "zset size with size=%ld, but vall=%ld\n", sizeof(uint64_t), vallen-mat_size);
+    assert(vallen >= LDB_VAL_META_SIZE);
+    if(vallen < sizeof(uint64_t) + LDB_VAL_META_SIZE){
+      fprintf(stderr, "zset size with size=%ld, but vall=%ld\n", sizeof(uint64_t), vallen - LDB_VAL_META_SIZE);
       retval = LDB_ERR;
     }else{
-      val += mat_size;
+      val += LDB_VAL_META_SIZE;
       *size = leveldb_decode_fixed64(val);
       retval = LDB_OK;
     }
@@ -261,9 +356,9 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_s
   int64_t old_score = 0;
   int found = zset_get(context, name, key, &old_score);
   if(found == LDB_OK_NOT_EXIST || old_score != score){
-    ldb_slice_t *slice_key0, *slice_key1, *slice_key2 = NULL;
-
     if(found != LDB_OK_NOT_EXIST){ 
+
+      ldb_slice_t *slice_key1 = NULL;
       //delete zscore key
       encode_zscore_key(ldb_slice_data(name), 
                         ldb_slice_size(name), 
@@ -277,6 +372,7 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_s
                                     ldb_slice_data(slice_key1),
                                     ldb_slice_size(slice_key1));
     }
+    ldb_slice_t *slice_key2 = NULL;
     //add zscore key
     encode_zscore_key(ldb_slice_data(name),
                       ldb_slice_size(name),
@@ -285,15 +381,15 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_s
                       NULL,
                       score,
                       &slice_key2);
-
     //add zscore key
     ldb_slice_t *slice_val2 = ldb_slice_create(NULL, 0);
-
     ldb_context_writebatch_put(context,
                                ldb_slice_data(slice_key2),
                                ldb_slice_size(slice_key2),
                                ldb_slice_data(slice_val2),
                                ldb_slice_size(slice_val2));
+
+    ldb_slice_t *slice_key0 = NULL;
     //update zset
     encode_zset_key(ldb_slice_data(name),
                     ldb_slice_size(name),
@@ -356,7 +452,7 @@ static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_s
   return 1;
 }
 
-static int zset_incr_size(ldb_context_t *context, const ldb_slice_t* name, const ldb_meta_t* meta,  int64_t by){
+static int zset_incr_size(ldb_context_t *context, const ldb_slice_t* name, int64_t by){
   uint64_t size = 0;
   zset_size(context, name, &size);
   size += by;

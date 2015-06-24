@@ -46,8 +46,7 @@ end:
 }
 
 int string_set(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta){
-  leveldb_mutex_lock(context->mutex_);
-  int retval = LDB_OK;
+  int retval = 0;
   if(ldb_slice_size(key) == 0){
     fprintf(stderr, "empty key!\n");
     retval = LDB_ERR;
@@ -75,7 +74,6 @@ int string_set(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t
   retval = LDB_OK;
 
 end:
-  leveldb_mutex_unlock(context->mutex_);
   return retval;
 }
 
@@ -179,17 +177,15 @@ int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pva
     goto end;
   }
   if(val != NULL){
-    size_t mat_size = 1+8;
-    assert(vallen>= mat_size);
+    assert(vallen>= LDB_VAL_META_SIZE);
     uint8_t type = leveldb_decode_fixed8(val);
     if(type == LDB_VALUE_TYPE_VAL){
-      *pvalue = ldb_slice_create(val+1, vallen-1);
+      *pvalue = ldb_slice_create(val+LDB_VAL_TYPE_SIZE, vallen-LDB_VAL_TYPE_SIZE);
       retval = LDB_OK;
     }else{
       retval = LDB_OK_NOT_EXIST;
     }
     leveldb_free(val);
-    goto end;
   }else{
     retval = LDB_OK_NOT_EXIST;
   }
@@ -198,3 +194,32 @@ end:
   return retval;
 }
 
+int string_del(ldb_context_t* context, const ldb_slice_t* key, const ldb_meta_t* meta){
+  int retval = 0;
+  if(ldb_slice_size(key) == 0){
+    fprintf(stderr, "empty key!\n");
+    retval = LDB_ERR;
+    goto end;
+  }
+  char *errptr = NULL;
+  leveldb_writeoptions_t* writeoptions = leveldb_writeoptions_create();
+  ldb_slice_t *slice_key = NULL;
+  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), meta, &slice_key);
+  leveldb_delete(context->database_, 
+                 writeoptions, 
+                 ldb_slice_data(slice_key), 
+                 ldb_slice_size(slice_key), 
+                 &errptr);
+  leveldb_writeoptions_destroy(writeoptions);
+  ldb_slice_destroy(slice_key);
+  if(errptr != NULL){
+    fprintf(stderr, "leveldb_delete fail %s.\n", errptr);
+    leveldb_free(errptr);
+    retval = LDB_ERR;
+    goto end;
+  }
+  retval = LDB_OK;
+
+end:
+  return retval;
+}

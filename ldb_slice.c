@@ -16,13 +16,13 @@ struct ldb_slice_t {
 
 ldb_slice_t* ldb_slice_create(const char* data, size_t size){
   ldb_slice_t *slice = (ldb_slice_t*)lmalloc(sizeof(ldb_slice_t));
-  if(size >0){
+  if(size==0 || data == NULL){
+    slice->data_ = NULL;
+    slice->size_ = 0;
+  }else{
     slice->data_ = lmalloc(size);
     memcpy(slice->data_, data, size);
     slice->size_ = size;
-  }else{
-    slice->data_ = NULL;
-    slice->size_ = 0;
   }
   slice->capacity_ = slice->size_;
   return slice;
