@@ -89,6 +89,9 @@ int decode_slice_value(const ldb_slice_t* slice_val, value_item_t* item){
 
 //string
 int ldb_set(ldb_context_t* context, uint32_t area, char* key, size_t keylen, uint64_t lastver, int vercare, long exptime, value_item_t* item, int en);
+//int ldb_mset(ldb_context_t* context, uint32_t area, uint64_t lastver, int vercare, long exptime, 
+//int ldb_msetnx(ldb_context_t* context, uint32_t area, uint64_t lastver, int vercare, long exptime,
+
 int ldb_get(ldb_context_t* context, uint32_t area, char* key, size_t keylen, value_item_t** item);
 int ldb_del(ldb_context_t* context, uint32_t area, char* key, size_t keylen, int vercare, uint64_t version);
 
