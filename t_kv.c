@@ -233,8 +233,7 @@ int string_msetnx(ldb_context_t* context, const ldb_list_t* datalist, const ldb_
   ldb_list_iterator_t *dataiterator = ldb_list_iterator_create(datalist);
   ldb_list_iterator_t *metaiterator = ldb_list_iterator_create(metalist);
   ldb_list_t *retlist = ldb_list_create();
-  
-  
+   
   while(1){
     ldb_list_node_t* node_key = ldb_list_next(&dataiterator);
     if(node_key== NULL){
@@ -367,5 +366,50 @@ int string_del(ldb_context_t* context, const ldb_slice_t* key, const ldb_meta_t*
   retval = LDB_OK;
 
 end:
+  return retval;
+}
+
+
+int string_incr(ldb_context_t* context, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t init, int64_t by, int64_t* val){
+  leveldb_mutex_lock(context->mutex_);
+  int retval = 0;
+  ldb_slice_t *slice_value = NULL;
+  int found = string_get(context, key, &slice_value);
+  if(found == LDB_OK){
+    *val = leveldb_decode_fixed64(ldb_slice_data(slice_value)+sizeof(uint64_t));
+  }else if(found == LDB_OK_NOT_EXIST){
+    *val = init;
+  }else{
+    retval = found;
+    goto end;
+  }
+  *val += by; 
+  char buf[sizeof(int64_t)] = {0};
+  leveldb_encode_fixed64(buf, *val);
+
+  char *errptr = NULL;
+  leveldb_writeoptions_t* writeoptions = leveldb_writeoptions_create();
+  ldb_slice_t *slice_key = NULL;
+  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), meta, &slice_key);
+  leveldb_put(context->database_, 
+              writeoptions, 
+              ldb_slice_data(slice_key), 
+              ldb_slice_size(slice_key), 
+              buf,
+              sizeof(buf),
+              &errptr);
+  leveldb_writeoptions_destroy(writeoptions);
+  ldb_slice_destroy(slice_key);
+  if(errptr != NULL){
+    fprintf(stderr, "leveldb_put fail %s.\n", errptr);
+    leveldb_free(errptr);
+    retval = LDB_ERR;
+    goto end;
+  }
+  retval = LDB_OK;
+
+end:
+  leveldb_mutex_unlock(context->mutex_);
+  ldb_slice_destroy(slice_value);
   return retval;
 }

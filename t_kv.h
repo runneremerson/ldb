@@ -23,10 +23,8 @@ int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pva
 
 int string_del(ldb_context_t* context, const ldb_slice_t* key, const ldb_meta_t* meta);
 
-//
-//int string_mget
-//
-//int string_incr
+int string_incr(ldb_context_t* context, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t init, int64_t by, int64_t* val);
+
 
 
 

@@ -9,6 +9,8 @@
 #include "ldb_meta.h"
 #include "ldb_define.h"
 
+#include "../cgo_util/base.h"
+
 #include "t_kv.h"
 
 #include <leveldb-ldb/c.h>
@@ -88,12 +90,51 @@ int decode_slice_value(const ldb_slice_t* slice_val, value_item_t* item){
 
 
 //string
-int ldb_set(ldb_context_t* context, uint32_t area, char* key, size_t keylen, uint64_t lastver, int vercare, long exptime, value_item_t* item, int en);
-//int ldb_mset(ldb_context_t* context, uint32_t area, uint64_t lastver, int vercare, long exptime, 
-//int ldb_msetnx(ldb_context_t* context, uint32_t area, uint64_t lastver, int vercare, long exptime,
+int ldb_set(ldb_context_t* context,
+            uint32_t area, 
+            char* key, 
+            size_t keylen, 
+            uint64_t lastver, 
+            int vercare, 
+            long exptime, 
+            value_item_t* item, 
+            int en);
+int ldb_mset(ldb_context_t* context, 
+             uint32_t area, 
+             uint64_t lastver, 
+             int vercare, 
+             long exptime, 
+             GoByteSlice* keyvals, 
+             GoUint64Slice* versions, 
+             int length,
+             GoUint64Slice* retvals,
+             int en);
 
-int ldb_get(ldb_context_t* context, uint32_t area, char* key, size_t keylen, value_item_t** item);
-int ldb_del(ldb_context_t* context, uint32_t area, char* key, size_t keylen, int vercare, uint64_t version);
+int ldb_get(ldb_context_t* context, 
+            uint32_t area, 
+            char* key, 
+            size_t keylen, 
+            value_item_t** item);
+int ldb_del(ldb_context_t* context, 
+            uint32_t area, 
+            char* key, 
+            size_t keylen, 
+            int vercare, 
+            uint64_t version);
+
+int ldb_incrby(ldb_context_t* context,
+               uint32_t area,
+               char* key,
+               size_t keylen,
+               uint64_t lastver,
+               int vercare,
+               long exptime,
+               uint64_t version,
+               int64_t initval,
+               int64_t by,
+               int64_t* reault);
+
+
 
 //hash
 
@@ -103,7 +144,15 @@ int ldb_del(ldb_context_t* context, uint32_t area, char* key, size_t keylen, int
 
 
 
-int ldb_set(ldb_context_t* context, uint32_t area, char* key, size_t keylen, uint64_t lastver, int vercare, long exptime, value_item_t* item, int en){
+int ldb_set(ldb_context_t* context, 
+            uint32_t area, 
+            char* key, 
+            size_t keylen, 
+            uint64_t lastver, 
+            int vercare, 
+            long exptime, 
+            value_item_t* item, 
+            int en){
   int retval = 0;
   ldb_slice_t *slice_key, *slice_val , *slice_value = NULL;
   slice_key = ldb_slice_create(key, keylen);
@@ -126,7 +175,80 @@ end:
   return retval;
 }
 
-int ldb_get(ldb_context_t* context, uint32_t area, char* key, size_t keylen, value_item_t** item){
+
+int ldb_mset(ldb_context_t* context, 
+             uint32_t area, 
+             uint64_t lastver, 
+             int vercare, 
+             long exptime, 
+             GoByteSlice* keyvals, 
+             GoUint64Slice* versions, 
+             int length,
+             GoUint64Slice* retvals,
+             int en){
+  int retval = 0;
+  ldb_list_t *datalist, *metalist, *retlist = NULL;
+  datalist = ldb_list_create();
+  metalist = ldb_list_create();
+  for( int i=0, v=0; i<length;){
+    //push key
+    ldb_slice_t *slice_key = ldb_slice_create(keyvals[i].data, keyvals[i].data_len);
+    ldb_list_node_t *node_key = ldb_list_node_create();
+    node_key->type_ = LDB_LIST_NODE_TYPE_SLICE;
+    node_key->data_ = slice_key;;
+    lpush_ldb_list_node(datalist, node_key);
+    ++i;
+
+    //push value
+    ldb_slice_t *slice_val = ldb_slice_create(keyvals[i].data, keyvals[i].data_len);
+    ldb_list_node_t *node_val = ldb_list_node_create();
+    node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
+    node_val->data_ = slice_val;;
+    lpush_ldb_list_node(datalist, node_val);
+    ++i;
+
+    //push meta
+    ldb_meta_t *meta = ldb_meta_create(vercare, lastver, versions->data[v]);
+    ldb_list_node_t *node_meta = ldb_list_node_create();
+    node_meta->type_ = LDB_LIST_NODE_TYPE_META;
+    node_meta->data_ = meta;;
+    lpush_ldb_list_node(metalist, node_meta);
+    ++v;
+  }
+  
+
+  if(en == IS_NOT_EXIST){
+    retval = string_msetnx(context, datalist, metalist, &retlist);
+  } else {
+    retval = string_mset(context, datalist, metalist, &retlist);
+  }
+
+  if(retval != LDB_OK){
+    goto end;
+  }
+  ldb_list_iterator_t *iterator = ldb_list_iterator_create(retlist);
+  int now = 0;
+  while(1){
+    ldb_list_node_t *node = ldb_list_next(&iterator);
+    if(node == NULL){
+      break;
+    }
+    retvals->data[now] = (int)(node->value_);
+    ++now;
+  }
+  
+end:
+  ldb_list_destroy(datalist);
+  ldb_list_destroy(metalist);
+  ldb_list_destroy(retlist);
+  return retval;
+}
+
+int ldb_get(ldb_context_t* context, 
+            uint32_t area, 
+            char* key, 
+            size_t keylen, 
+            value_item_t** item){
   int retval = 0;
   ldb_slice_t *slice_key, *slice_val = NULL;
   slice_key = ldb_slice_create(key, keylen);
@@ -148,7 +270,12 @@ end:
 }
 
 
-int ldb_del(ldb_context_t* context, uint32_t area, char* key, size_t keylen, int vercare, uint64_t version){
+int ldb_del(ldb_context_t* context, 
+            uint32_t area, 
+            char* key, 
+            size_t keylen, 
+            int vercare, 
+            uint64_t version){
   int retval = 0;
   ldb_slice_t *slice_key = ldb_slice_create(key, keylen);
   ldb_meta_t *meta = ldb_meta_create(vercare, 0, version);
@@ -157,6 +284,27 @@ int ldb_del(ldb_context_t* context, uint32_t area, char* key, size_t keylen, int
 end:
   ldb_slice_destroy(slice_key);
   ldb_meta_destroy(meta);
+  return retval;
+}
+
+int ldb_incrby(ldb_context_t* context,
+               uint32_t area,
+               char* key,
+               size_t keylen,
+               uint64_t lastver,
+               int vercare,
+               long exptime,
+               uint64_t version,
+               int64_t initval,
+               int64_t by,
+               int64_t* result){
+  int retval = 0;
+  ldb_slice_t *slice_key = ldb_slice_create(key, keylen);
+  ldb_meta_t *meta = ldb_meta_create(vercare, lastver, version);
+  retval = string_incr(context, slice_key, meta, initval, by, result);
+
+end:
+  ldb_slice_destroy(slice_key);
   return retval;
 }
 
