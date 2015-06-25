@@ -3,6 +3,7 @@
 #include "ldb_context.h"
 #include "ldb_meta.h"
 #include "ldb_bytes.h"
+#include "ldb_list.h"
 #include "t_kv.h"
 
 #include <leveldb-ldb/c.h>
@@ -156,6 +157,151 @@ int string_setxx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
   }
   retval = LDB_OK; 
 end:
+  leveldb_mutex_unlock(context->mutex_);
+  return retval;
+}
+
+
+int string_mset(ldb_context_t* context, const ldb_list_t* datalist, const ldb_list_t* metalist, ldb_list_t** plist){
+  leveldb_mutex_lock(context->mutex_);
+  int retval = 0; 
+  ldb_list_iterator_t *dataiterator = ldb_list_iterator_create(datalist);
+  ldb_list_iterator_t *metaiterator = ldb_list_iterator_create(metalist);
+  ldb_list_t *retlist = ldb_list_create();
+  
+  
+  while(1){
+    ldb_list_node_t* node_key = ldb_list_next(&dataiterator);
+    if(node_key== NULL){
+      retval = LDB_OK;
+      break;
+    }
+    //encode key
+    ldb_list_node_t* node_meta = ldb_list_next(&metaiterator);
+    ldb_slice_t *slice_key = NULL;
+    ldb_slice_t *key = (ldb_slice_t*)(node_key->data_);
+    ldb_meta_t *meta = (ldb_meta_t*)(node_meta->data_);
+    encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), meta, &slice_key);
+
+    //put kv
+    ldb_list_node_t* node_val = ldb_list_next(&dataiterator);
+    ldb_slice_t *value = (ldb_slice_t*)(node_val->data_);
+    ldb_context_writebatch_put(context,
+                               ldb_slice_data(slice_key),
+                               ldb_slice_size(slice_key),
+                               ldb_slice_data(value),
+                               ldb_slice_size(value));
+    
+    //push return value
+    ldb_list_node_t* node_ret = ldb_list_node_create();
+    node_ret->type_ = LDB_LIST_NODE_TYPE_BASE;
+    node_ret->value_ = LDB_OK;
+    rpush_ldb_list_node(retlist, node_ret); 
+
+    //destroy slice_key
+    ldb_slice_destroy(slice_key);
+  } 
+  char* errptr = NULL;
+  ldb_context_writebatch_commit(context, &errptr);
+  if(errptr != NULL){
+    fprintf(stderr, "write writebatch fail %s.\n", errptr);
+    leveldb_free(errptr);
+    retval = LDB_ERR;
+    goto err;
+  }
+  goto end;
+
+err:
+  ldb_list_destroy(retlist);
+  retlist = NULL;
+  goto end;
+ 
+end:
+  if(retlist != NULL){
+    (*plist) = retlist;
+  }
+  ldb_list_iterator_destroy(dataiterator);
+  ldb_list_iterator_destroy(metaiterator);
+  leveldb_mutex_unlock(context->mutex_);
+  return retval;
+}
+
+
+int string_msetnx(ldb_context_t* context, const ldb_list_t* datalist, const ldb_list_t* metalist, ldb_list_t** plist){
+  leveldb_mutex_lock(context->mutex_);
+  int retval = 0; 
+  ldb_list_iterator_t *dataiterator = ldb_list_iterator_create(datalist);
+  ldb_list_iterator_t *metaiterator = ldb_list_iterator_create(metalist);
+  ldb_list_t *retlist = ldb_list_create();
+  
+  
+  while(1){
+    ldb_list_node_t* node_key = ldb_list_next(&dataiterator);
+    if(node_key== NULL){
+      retval = LDB_OK;
+      break;
+    }
+
+    //encode key
+    ldb_list_node_t* node_meta = ldb_list_next(&metaiterator);
+    ldb_slice_t *slice_key = NULL;
+    ldb_slice_t *key = (ldb_slice_t*)(node_key->data_);
+
+
+    //check get result
+    ldb_slice_t *slice_value = NULL;
+    int found = string_get(context, key, &slice_value);
+    if(found == LDB_OK){
+      ldb_list_node_t* node = ldb_list_node_create();
+      node->type_ = LDB_LIST_NODE_TYPE_BASE;
+      node->value_ = LDB_OK_BUT_ALREADY_EXIST;
+      rpush_ldb_list_node(retlist, node); 
+      ldb_slice_destroy(slice_value);
+      continue;
+    }
+
+    ldb_meta_t *meta = (ldb_meta_t*)(node_meta->data_);
+    encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), meta, &slice_key);
+
+    //put kv
+    ldb_list_node_t* node_val = ldb_list_next(&dataiterator);
+    ldb_slice_t *value = (ldb_slice_t*)(node_val->data_);
+    ldb_context_writebatch_put(context,
+                               ldb_slice_data(slice_key),
+                               ldb_slice_size(slice_key),
+                               ldb_slice_data(value),
+                               ldb_slice_size(value));
+    
+    //push return value
+    ldb_list_node_t* node = ldb_list_node_create();
+    node->type_ = LDB_LIST_NODE_TYPE_BASE;
+    node->value_ = LDB_OK;
+    rpush_ldb_list_node(retlist, node); 
+
+    //destroy slice_key
+    ldb_slice_destroy(slice_key);
+  } 
+  char* errptr = NULL;
+  ldb_context_writebatch_commit(context, &errptr);
+  if(errptr != NULL){
+    fprintf(stderr, "write writebatch fail %s.\n", errptr);
+    leveldb_free(errptr);
+    retval = LDB_ERR;
+    goto err;
+  }
+  goto end;
+
+err:
+  ldb_list_destroy(retlist);
+  retlist = NULL;
+  goto end;
+ 
+end:
+  if(retlist != NULL){
+    (*plist) = retlist;
+  }
+  ldb_list_iterator_destroy(dataiterator);
+  ldb_list_iterator_destroy(metaiterator);
   leveldb_mutex_unlock(context->mutex_);
   return retval;
 }

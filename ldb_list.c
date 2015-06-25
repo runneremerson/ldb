@@ -1,6 +1,7 @@
 #include "ldb_list.h"
 #include "ldb_slice.h"
 #include "ldb_meta.h"
+#include "ldb_define.h"
 
 #include "lmalloc.h"
 
@@ -124,5 +125,32 @@ ldb_list_node_t* lpop_ldb_list_node(ldb_list_t* list){
   ldb_list_node_t* node = list->tail_;
   list->tail_ = list->tail_->prev_;
   list->length_ -= 1;
+  return node;
+}
+
+ldb_list_iterator_t* ldb_list_iterator_create(const ldb_list_t* list){
+  if(list == NULL || list->head_== NULL){
+    return NULL;
+  }
+  ldb_list_iterator_t *iterator = lmalloc(sizeof(ldb_list_iterator_t));
+  iterator->next_ = list->head_;
+  iterator->now_ = 0;
+  return iterator;
+}
+
+void ldb_list_iterator_destroy(ldb_list_iterator_t* iterator){
+  lfree(iterator);
+}
+
+ldb_list_node_t* ldb_list_next(ldb_list_iterator_t** piterator){
+  if(*piterator == NULL){
+    return NULL;
+  }
+  if((*piterator)->next_ == NULL){
+    return NULL;
+  }
+  ldb_list_node_t *node = (*piterator)->next_;
+  (*piterator)->next_ = (*piterator)->next_->next_;
+  (*piterator)->now_ += 1;
   return node;
 }
