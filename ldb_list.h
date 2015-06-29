@@ -9,7 +9,7 @@ struct ldb_list_node_t {
   struct ldb_list_node_t* next_;
   struct ldb_list_node_t* prev_;
   uint32_t type_;
-  int64_t value_;
+  uint64_t value_;
   void* data_;
 };
 

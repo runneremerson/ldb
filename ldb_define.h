@@ -18,9 +18,10 @@
 #define LDB_DATA_TYPE_ZSIZE                  "Z"
 
 
-#define LDB_LIST_NODE_TYPE_BASE              0
-#define LDB_LIST_NODE_TYPE_SLICE             1
-#define LDB_LIST_NODE_TYPE_META              2
+#define LDB_LIST_NODE_TYPE_NONE              0
+#define LDB_LIST_NODE_TYPE_BASE              1
+#define LDB_LIST_NODE_TYPE_SLICE             2
+#define LDB_LIST_NODE_TYPE_META              3
 
 
 

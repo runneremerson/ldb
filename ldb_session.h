@@ -76,7 +76,7 @@ int set_ldb_signal_handler(const char* name){
   return 0;
 }
 
-int decode_slice_value(const ldb_slice_t* slice_val, value_item_t* item){
+static int decode_slice_value(const ldb_slice_t* slice_val, value_item_t* item){
   if(ldb_slice_size(slice_val) <  sizeof(uint64_t) ){
     return -1;
   }
@@ -85,6 +85,13 @@ int decode_slice_value(const ldb_slice_t* slice_val, value_item_t* item){
   size_t size = ldb_slice_size(slice_val)-sizeof(uint64_t);
   fill_value_item(item, version, data, size); 
   return 0;
+}
+
+static char* malloc_and_copy(const ldb_slice_t* slice_val){
+  size_t size = ldb_slice_size(slice_val);
+  char* result = lmalloc(size);
+  memcpy(result, ldb_slice_data(slice_val), size); 
+  return result;
 }
 
 
@@ -115,6 +122,15 @@ int ldb_get(ldb_context_t* context,
             char* key, 
             size_t keylen, 
             value_item_t** item);
+
+int ldb_mget(ldb_context_t* context,
+             uint32_t area,
+             GoByteSlice* slice,
+             int length,
+             GoByteSliceSlice* items,
+             GoUint64Slice* versions,
+             int* number);
+
 int ldb_del(ldb_context_t* context, 
             uint32_t area, 
             char* key, 
@@ -241,6 +257,7 @@ end:
   ldb_list_destroy(datalist);
   ldb_list_destroy(metalist);
   ldb_list_destroy(retlist);
+  ldb_list_iterator_destroy(iterator);
   return retval;
 }
 
@@ -269,6 +286,68 @@ end:
   return retval;
 }
 
+
+int ldb_mget(ldb_context_t* context,
+             uint32_t area,
+             GoByteSlice* slice,
+             int length,
+             GoByteSliceSlice* items,
+             GoUint64Slice* versions,
+             int* number){
+  int retval = 0;
+  ldb_list_t *keylist, *vallist, *metalist = NULL;
+  keylist = ldb_list_create();
+  for( int i=0; i<length;){
+    //push key
+    ldb_slice_t *slice_key = ldb_slice_create(slice[i].data, slice[i].data_len);
+    ldb_list_node_t *node_key = ldb_list_node_create();
+    node_key->type_ = LDB_LIST_NODE_TYPE_SLICE;
+    node_key->data_ = slice_key;;
+    lpush_ldb_list_node(keylist, node_key);
+    ++i;
+  }
+  retval = string_mget(context, keylist, &vallist, &metalist);
+  if(retval != LDB_OK){
+    goto end;
+  }
+  ldb_list_iterator_t *valiterator = ldb_list_iterator_create(vallist);
+  ldb_list_iterator_t *metiterator = ldb_list_iterator_create(metalist);
+  int now = 0;
+  while(1){
+    ldb_list_node_t* node_val = ldb_list_next(&valiterator);
+    if(node_val == NULL){
+      retval = LDB_OK;
+      break;
+    }
+    ldb_list_node_t* node_met = ldb_list_next(&metiterator);
+    if(node_met == NULL){
+      retval = LDB_OK;
+      break;
+    }
+    if( node_val->type_ == LDB_LIST_NODE_TYPE_NONE ){
+      items->data[now].data_len = 0;
+      items->data[now].data = NULL;
+    }else{
+      items->data[now].data_len = ldb_slice_size((ldb_slice_t*)node_val->data_);
+      items->data[now].data = malloc_and_copy((ldb_slice_t*)node_val->data_);
+    }
+    if( node_met->type_ == LDB_LIST_NODE_TYPE_NONE ){
+      versions->data[now] = 0;
+    }else{
+      versions->data[now] = node_met->value_;
+    }
+    items->data[now].cap = items->data[now].data_len;
+    ++now;
+  }
+
+end:
+  ldb_list_destroy(keylist);
+  ldb_list_destroy(vallist);
+  ldb_list_destroy(metalist);
+  ldb_list_iterator_destroy(valiterator);
+  ldb_list_iterator_destroy(metiterator);
+  return retval;
+}
 
 int ldb_del(ldb_context_t* context, 
             uint32_t area, 

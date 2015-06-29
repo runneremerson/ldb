@@ -20,6 +20,7 @@ int string_msetnx(ldb_context_t* context, const ldb_list_t* datalist, const ldb_
 
 int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pvalue);
 
+int string_mget(ldb_context_t* context, const ldb_list_t* keylist, ldb_list_t** pvallist, ldb_list_t** metalist);
 
 int string_del(ldb_context_t* context, const ldb_slice_t* key, const ldb_meta_t* meta);
 
