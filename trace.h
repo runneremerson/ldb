@@ -1,5 +1,5 @@
-#ifndef LDB_POSIX_TRACE_H
-#define LDB_POSIX_TRACE_H
+#ifndef LDB_TRACE_H
+#define LDB_TRACE_H
 
 #include <stdlib.h>
 #include <stdio.h>
