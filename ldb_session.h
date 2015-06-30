@@ -2,8 +2,6 @@
 #define LDB_SESSION_H
 
 #include "ldb_context.h"
-#include "ldb_slice.h"
-#include "ldb_meta.h"
 
 #include "cgo_util/base.h"
 

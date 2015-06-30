@@ -2,7 +2,7 @@ package ldb
 
 /*
 #cgo linux CFLAGS: -std=gnu99 -W -I/usr/local/include -I../ -DUSE_TCMALLOC=1 -DUSE_INT=1
-#cgo  LDFLAGS:	-L/usr/local/lib  -lleveldb-ldb -ltcmalloc_minimal
+#cgo  LDFLAGS:	-L/usr/local/lib  -lleveldb-ldb -ltcmalloc
 #include "ldb_context.h"
 #include "ldb_session.h"
 */

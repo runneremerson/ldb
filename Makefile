@@ -5,7 +5,7 @@ OBJS = ldb_session.o ldb_bytes.o ldb_context.o ldb_list.o ldb_meta.o ldb_slice.o
 LIBS = /usr/local/lib/libleveldb-ldb.a
 
 CFLAGS= -std=gnu99 -I../ -I../../ -DUSE_TCMALLOC=1 -DUSE_INT=1 
-CLIBS= -lpthread -ltcmalloc_minimal  
+CLIBS= -lpthread -ltcmalloc  
 
 all: ${OBJS}
 	ar -cru ./benchmark/libldb.a ${OBJS}
