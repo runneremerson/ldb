@@ -321,6 +321,34 @@ int testMultiGetString(char* argv1, char* argv2)
 	return 0;
 }
 
+int testSoloSetString(char* argv1, char* argv2)
+{
+	BEGIN_FUNC;
+
+	NUM = atoi(argv1);
+    TIMES = atoi(argv2);
+
+	srand((int)time(0));
+
+	int id = 1;
+
+	for(int i=0; i<NUM; ++i)
+	{   
+		testSetString(&id);
+	}
+
+
+    END_FUNC;
+
+    long long total = NUM * TIMES;
+
+    float tps = total * 1000000 / cost_time;
+
+    printf("%s total request %lld, tps: %0.3f per seconds\n", __func__, total, tps);
+
+	return 0;
+}
+
 int testInit()
 {
 	//BEGIN_FUNC;
@@ -333,7 +361,7 @@ int testInit()
 
 	//END_FUNC;
     
-    //init_global_array();
+    init_global_array();
 	return 0;
 }   
 
@@ -347,9 +375,14 @@ int main(int argc, char* argv[]){
 
 	testInit();
 
-	//testMultiSetString(argv[1], argv[2]);
 	
 	//testMultiGetString(argv[1], argv[2]);
+
+    testSoloSetString(argv[1], argv[2]);
+
+
+    //int area = 1;
+    //testSetString(&area);
 
 	return 0;
 }
