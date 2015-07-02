@@ -79,8 +79,8 @@ void* testSetString(void* no)
 
 		char csKey[16] = {0}, csValue[16] = {0};
 
-		snprintf(csKey, sizeof(csKey), "%u", iKey);
-		snprintf(csValue, sizeof(csValue), "%u", iValue);
+		snprintf(csKey, sizeof(csKey), "%d", iKey);
+		snprintf(csValue, sizeof(csValue), "%d", iValue);
 
 		value_item_t valueItem;
 		memset((void*)&valueItem, 0, sizeof(valueItem));
@@ -376,9 +376,11 @@ int main(int argc, char* argv[]){
 	testInit();
 
 	
-	//testMultiGetString(argv[1], argv[2]);
+	testMultiGetString(argv[1], argv[2]);
 
-    testSoloSetString(argv[1], argv[2]);
+    testMultiSetString(argv[1], argv[2]);
+
+    //testSoloSetString(argv[1], argv[2]);
 
 
     //int area = 1;
