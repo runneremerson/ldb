@@ -2,14 +2,13 @@ CC=gcc
 OBJS = ldb_session.o ldb_bytes.o ldb_context.o ldb_list.o ldb_meta.o ldb_slice.o \
 	   lmalloc.o t_kv.o 
 
-LIBS = /usr/local/lib/libleveldb-ldb.a
 
 #CFLAGS= -std=gnu99 -I../ -I../../ -DUSE_TCMALLOC=1 -DUSE_INT=1 
-CFLAGS= -std=gnu99 -I../ -I../../  -DUSE_INT=1 
+CFLAGS= -std=gnu99 -O0 -g -I../ -I../../  -DUSE_INT=1 
 CLIBS= -lpthread #-ltcmalloc  
 
 all: ${OBJS}
-	ar -cru ./benchmark/libldb.a ${OBJS}
+	ar -cru libldb.a ${OBJS}
 
 ldb_session.o: ldb_session.h ldb_session.c
 	${CC} ${CFLAGS} -c ldb_session.c
@@ -29,10 +28,8 @@ t_kv.o: t_kv.h t_kv.c
 	${CC} ${CFLAGS} -c t_kv.c
 
 
-bench:
-	${CC} -o ldb_bench ldb_bench.c ${OBJS} ${CFLAGS} ${LIBS} ${CLIBS}
 
 clean:
-	rm -f ${EXES} *.o *.exe *.a
+	rm -f  *.o  *.a
 
 
