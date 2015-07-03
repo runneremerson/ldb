@@ -1,4 +1,6 @@
 CC=gcc
+MAKE=make
+
 OBJS = ldb_session.o ldb_bytes.o ldb_context.o ldb_list.o ldb_meta.o ldb_slice.o \
 	   lmalloc.o t_kv.o 
 
@@ -8,6 +10,7 @@ CFLAGS= -std=gnu99 -O0 -g -I../ -I../../ -DUSE_TCMALLOC=1 -DUSE_INT=1
 
 all: ${OBJS}
 	ar -cru libldb.a ${OBJS}
+	cd benchmark/; ${MAKE}
 
 ldb_session.o: ldb_session.h ldb_session.c
 	${CC} ${CFLAGS} -c ldb_session.c
@@ -30,5 +33,6 @@ t_kv.o: t_kv.h t_kv.c
 
 clean:
 	rm -f  *.o  *.a
+	cd benchmark/; ${MAKE} clean
 
 
