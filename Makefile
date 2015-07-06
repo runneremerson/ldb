@@ -10,3 +10,4 @@ clean:
 	cd src/; ${MAKE} clean
 	cd benchmark/; ${MAKE} clean
 	cd test/; ${MAKE} clean
+
