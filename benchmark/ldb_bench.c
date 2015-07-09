@@ -28,9 +28,10 @@ ldb_context_t *testContext = NULL;
 #define END_FUNC  \
 	struct timeval end_tv; \
 	gettimeofday(&end_tv, NULL); \
-	unsigned cost_time = (end_tv.tv_sec - begin_tv.tv_sec) * 1000000; \
+	unsigned long long cost_time = (end_tv.tv_sec - begin_tv.tv_sec) * 1000000; \
 	cost_time += end_tv.tv_usec - begin_tv.tv_usec; \
-	printf("%s begin %u.%u end %u.%u cost %u us\n", __func__, begin_tv.tv_sec, begin_tv.tv_usec, end_tv.tv_sec, end_tv.tv_usec, cost_time);
+	printf("%s begin %u.%llu end %u.%llu cost %llu us\n", __func__, begin_tv.tv_sec, begin_tv.tv_usec, end_tv.tv_sec, end_tv.tv_usec, cost_time);
+
 
 #define BEGIN_SECTION  \
 	struct timeval begin_sec; \
@@ -39,10 +40,10 @@ ldb_context_t *testContext = NULL;
 #define END_SECTION \
 	struct timeval end_sec; \
 	gettimeofday(&end_sec, NULL); \
-	unsigned cost_time = (end_sec.tv_sec - begin_sec.tv_sec) * 1000000; \
+	unsigned long long cost_time = (end_sec.tv_sec - begin_sec.tv_sec) * 1000000; \
 	cost_time += end_sec.tv_usec - begin_sec.tv_usec; \
     if (cost_time >= 1) \
-	printf("%s SEC begin %u.%u end %u.%u cost %u us\n", __func__, begin_sec.tv_sec, begin_sec.tv_usec, end_sec.tv_sec, end_sec.tv_usec, cost_time);
+	printf("%s SEC begin %u.%u end %u.%u cost %llu us\n", __func__, begin_sec.tv_sec, begin_sec.tv_usec, end_sec.tv_sec, end_sec.tv_usec, cost_time);
 
 
 #define random(x) (rand()%x)

@@ -11,8 +11,8 @@
 #include <assert.h>
 #include <string.h>
 
-static const char* LDB_SCORE_MIN = "-9223372036854775808";
-static const char* LDB_SCORE_MAX = "+9223372036854775807";
+int64_t LDB_SCORE_MIN = -9223372036854775808;
+int64_t LDB_SCORE_MAX = 9223372036854775807;
 
 static int zset_one(ldb_context_t *context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t score);
 

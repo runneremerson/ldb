@@ -2,7 +2,7 @@ CC=gcc
 MAKE=make
 
 OBJS = ldb_session.o ldb_bytes.o ldb_context.o ldb_list.o ldb_meta.o ldb_slice.o \
-	   lmalloc.o t_kv.o 
+	   ldb_iterator.o lmalloc.o t_kv.o 
 
 
 #CFLAGS= -std=gnu99 -O2 -I../ -I../../ -DUSE_TCMALLOC=1 -DUSE_INT=1 
@@ -23,6 +23,8 @@ ldb_meta.o: ldb_meta.h ldb_meta.c
 	${CC} ${CFLAGS} -c ldb_meta.c
 ldb_slice.o: ldb_slice.h ldb_slice.c
 	${CC} ${CFLAGS} -c ldb_slice.c
+ldb_iterator.o: ldb_iterator.h ldb_iterator.c
+	${CC} ${CFLAGS} -c ldb_iterator.c
 lmalloc.o: lmalloc.h lmalloc.c
 	${CC} ${CFLAGS} -c lmalloc.c
 t_kv.o: t_kv.h t_kv.c

@@ -18,6 +18,8 @@ int zset_size(ldb_context_t* context, const ldb_slice_t* name, uint64_t* size);
 
 int zset_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, int64_t* score);
 
+int zset_rank(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, int64_t* rank);
+
 
 #endif //LDB_T_ZSET_H
 
