@@ -16,7 +16,7 @@ typedef struct ldb_zset_iterator_t ldb_zset_iterator_t;
 typedef struct ldb_hash_iterator_t ldb_hash_iterator_t;
 
 
-ldb_zset_iterator_t* ldb_zset_iterator_create(ldb_context_t *context, const ldb_slice_t *start, const ldb_slice_t *end, int direction, uint64_t limit);
+ldb_zset_iterator_t* ldb_zset_iterator_create(ldb_context_t *context, const ldb_slice_t *start, const ldb_slice_t *end, uint64_t limit, int direction);
 void ldb_zset_iterator_destroy(ldb_zset_iterator_t* ziterator);
 
 int ldb_zset_iterator_skip(ldb_zset_iterator_t *ziterator, uint64_t offset);

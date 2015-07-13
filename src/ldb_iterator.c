@@ -1,4 +1,5 @@
 #include "ldb_iterator.h"
+#include "ldb_define.h"
 #include "lmalloc.h"
 #include "util.h"
 
@@ -12,7 +13,7 @@ struct ldb_zset_iterator_t {
     leveldb_iterator_t *iterator_;
 };
 
-ldb_zset_iterator_t* ldb_zset_iterator_create(ldb_context_t *context, const ldb_slice_t *start, const ldb_slice_t *end, int direction, uint64_t limit){
+ldb_zset_iterator_t* ldb_zset_iterator_create(ldb_context_t *context, const ldb_slice_t *start, const ldb_slice_t *end, uint64_t limit, int direction){
     ldb_zset_iterator_t *ziterator = (ldb_zset_iterator_t*)lmalloc(sizeof(ldb_zset_iterator_t));
     ziterator->end_ = ldb_slice_create(ldb_slice_data(end), ldb_slice_size(end));
     ziterator->direction_ = direction;
@@ -85,9 +86,14 @@ int ldb_zset_iterator_next(ldb_zset_iterator_t *ziterator){
             }
         }
     }
-    (ziterator->limit_)--;
-    retval = 0;
 
+    (ziterator->limit_)--;
+
+    if(compare_with_length(key, strlen(LDB_DATA_TYPE_ZSCORE), LDB_DATA_TYPE_ZSCORE, strlen(LDB_DATA_TYPE_ZSCORE))!=0){
+        retval = -1;
+        goto end;
+    }
+    retval = 0;
 end:
     return retval;
 }

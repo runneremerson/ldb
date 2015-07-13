@@ -354,7 +354,7 @@ int testInit()
 {
 	//BEGIN_FUNC;
 
-    testContext = ldb_context_create("/tmp/testdb", 128, 64);
+    testContext = ldb_context_create("/tmp/testdb", 1024, 512);
     if(testContext==NULL){
       printf("create ldb context failed, exit!\n");
       exit(1);

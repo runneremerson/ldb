@@ -46,23 +46,27 @@ static size_t ensure_capacity(size_t size){
 }
 
 void ldb_slice_push_back(ldb_slice_t* slice, const char* data, size_t size){
-  if(slice->capacity_ < (slice->size_ + size)){
-    slice->capacity_ = ensure_capacity(slice->size_ + size);
-    slice->data_ = lrealloc(slice->data_, slice->capacity_);
+  if(size > 0){
+    if(slice->capacity_ < (slice->size_ + size)){
+      slice->capacity_ = ensure_capacity(slice->size_ + size);
+      slice->data_ = lrealloc(slice->data_, slice->capacity_);
+    }
+    memcpy(slice->data_ + slice->size_, data, size);
+    slice->size_ += size;
   }
-  memcpy(slice->data_ + slice->size_, data, size);
-  slice->size_ += size;
 }
 
 
 void ldb_slice_push_front(ldb_slice_t* slice, const char* data, size_t size){
-  if(slice->capacity_ < (slice->size_ + size)){
-    slice->capacity_ = ensure_capacity(slice->size_ + size);
-    slice->data_ = lrealloc(slice->data_, slice->capacity_);
+  if(size > 0){
+    if(slice->capacity_ < (slice->size_ + size)){
+      slice->capacity_ = ensure_capacity(slice->size_ + size);
+      slice->data_ = lrealloc(slice->data_, slice->capacity_);
+    }
+    memmove(slice->data_ + size, slice->data_, slice->size_);
+    memcpy(slice->data_, data, size);
+    slice->size_ += size;
   }
-  memmove(slice->data_ + size, slice->data_, slice->size_);
-  memcpy(slice->data_, data, size);
-  slice->size_ += size;
 }
 
 const char* ldb_slice_data(const ldb_slice_t* slice){
