@@ -17,29 +17,18 @@
 int64_t LDB_SCORE_MIN = INT64_MIN;
 int64_t LDB_SCORE_MAX = INT64_MAX;
 
-static int zset_one(ldb_context_t *context, 
-                    const ldb_slice_t* name, 
-                    const ldb_slice_t* key, 
-                    const ldb_meta_t* meta, 
-                    int64_t score);
+static int zset_one(ldb_context_t *context, const ldb_slice_t* name, 
+                    const ldb_slice_t* key, const ldb_meta_t* meta, int64_t score);
 
-static int zdel_one(ldb_context_t *context, 
-                    const ldb_slice_t* name, 
-                    const ldb_slice_t* key, 
-                    const ldb_meta_t* meta);
+static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, 
+                    const ldb_slice_t* key, const ldb_meta_t* meta);
 
 static int zset_incr_size(ldb_context_t *context, 
-                          const ldb_slice_t* name, 
-                          int64_t by);
+                          const ldb_slice_t* name, int64_t by);
 
 
-static ldb_zset_iterator_t* ziterator(ldb_context_t *context, 
-                                      const ldb_slice_t *name,
-                                      const ldb_slice_t *kstart, 
-                                      int64_t sstart, 
-                                      int64_t send, 
-                                      uint64_t limit,
-                                      int direction);
+static ldb_zset_iterator_t* ziterator(ldb_context_t *context, const ldb_slice_t *name,
+                                      const ldb_slice_t *kstart, int64_t sstart, int64_t send, uint64_t limit,int direction);
 
 static void encode_zsize_key(const char* name, size_t namelen, const ldb_meta_t* meta, ldb_slice_t** pslice){
   ldb_slice_t* slice = ldb_meta_slice_create(meta);
@@ -184,7 +173,8 @@ end:
 }
 
 
-int zset_add(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t score){
+int zset_add(ldb_context_t* context, const ldb_slice_t* name, 
+             const ldb_slice_t* key, const ldb_meta_t* meta, int64_t score){
   leveldb_mutex_lock(context->mutex_);
   int ret = zset_one(context, name, key, meta, score);
   int retval = LDB_OK;
@@ -213,7 +203,8 @@ end:
   return retval;
 }
 
-int zset_del(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta){
+int zset_del(ldb_context_t* context, const ldb_slice_t* name, 
+             const ldb_slice_t* key, const ldb_meta_t* meta){
   leveldb_mutex_lock(context->mutex_);
   int ret = zdel_one(context, name, key, meta);
   int retval = LDB_OK; 
@@ -241,7 +232,8 @@ end:
   return retval;
 }
 
-int zset_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, int64_t* score){ 
+int zset_get(ldb_context_t* context, const ldb_slice_t* name, 
+             const ldb_slice_t* key, int64_t* score){ 
   char *val, *errptr = NULL;
   size_t vallen = 0;
   leveldb_readoptions_t* readoptions = leveldb_readoptions_create();
@@ -282,7 +274,8 @@ end:
 }
 
 
-int zset_rank(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, int reverse, int64_t* rank){
+int zset_rank(ldb_context_t* context, const ldb_slice_t* name, 
+              const ldb_slice_t* key, int reverse, int64_t* rank){
   int retval = 0;
   ldb_zset_iterator_t *iterator = NULL; 
   if(reverse == 0){
@@ -313,10 +306,49 @@ int zset_rank(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t
 end:
   ldb_zset_iterator_destroy(iterator);
   return retval;
-
 }
 
-int zset_incr(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t by, int64_t* val){
+int zset_range(ldb_context_t* context, const ldb_slice_t* name,
+        uint64_t offset, uint64_t limit, int reverse, ldb_zset_iterator_t **piterator){
+  uint64_t start, end = 0;
+  start = LDB_SCORE_MIN;
+  if(offset < LDB_SCORE_MAX-limit){
+    end = offset + limit;
+  }else{
+    end = LDB_SCORE_MAX;
+  }
+  if(reverse == 0){
+    *piterator = ziterator(context, name, NULL, start, end, limit, FORWARD);  
+  }else{
+    *piterator = ziterator(context, name, NULL, end, start, limit, BACKWARD);
+  }
+  int retval = 0;
+  if(ldb_zset_iterator_skip(*piterator, offset)<0){
+    retval = LDB_OK_RANGE_HAVE_NONE;
+    goto end;
+  }
+  retval = LDB_OK;
+
+end:
+  return retval;
+}
+
+int zset_scan(ldb_context_t* context, const ldb_slice_t* name, 
+        const ldb_slice_t* key, int64_t start, int64_t end, uint64_t limit, int reverse, ldb_zset_iterator_t **piterator){
+  int64_t score = 0;
+  if(ldb_slice_size(key)==0 || zset_get(context, name, key, &score) != LDB_OK ){
+    score= start;
+  }
+  if(reverse == 0){
+    *piterator = ziterator(context, name, key, score, end, limit, FORWARD);
+  }else{
+    *piterator = ziterator(context, name, key, score, end, limit, BACKWARD);
+  }
+  return LDB_OK; 
+}
+
+int zset_incr(ldb_context_t* context, const ldb_slice_t* name, 
+              const ldb_slice_t* key, const ldb_meta_t* meta, int64_t by, int64_t* val){
   leveldb_mutex_lock(context->mutex_);
   int64_t old_score = 0;
   int ret = zset_get(context, name, key, &old_score);
@@ -356,7 +388,8 @@ end:
 }
 
 
-int zset_size(ldb_context_t* context, const ldb_slice_t* name, uint64_t* size){
+int zset_size(ldb_context_t* context, const ldb_slice_t* name, 
+              uint64_t* size){
   ldb_slice_t *slice_key = NULL;
   encode_zsize_key(ldb_slice_data(name),
                    ldb_slice_size(name),
@@ -396,11 +429,8 @@ end:
 }
 
 
-static int zset_one(ldb_context_t *context, 
-                    const ldb_slice_t* name, 
-                    const ldb_slice_t* key, 
-                    const ldb_meta_t* meta, 
-                    int64_t score){
+static int zset_one(ldb_context_t *context, const ldb_slice_t* name, 
+                    const ldb_slice_t* key, const ldb_meta_t* meta, int64_t score){
   if(ldb_slice_size(name)==0 || ldb_slice_size(key)==0){
     fprintf(stderr, "empty name or key!");
     return 0;
@@ -472,10 +502,8 @@ static int zset_one(ldb_context_t *context,
 
 
 
-static int zdel_one(ldb_context_t *context, 
-                    const ldb_slice_t* name, 
-                    const ldb_slice_t* key, 
-                    const ldb_meta_t* meta){
+static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, 
+                    const ldb_slice_t* key, const ldb_meta_t* meta){
   if(ldb_slice_size(name) > LDB_KEY_LEN_MAX){
     fprintf(stderr, "name too long!");
     return -1;
@@ -516,8 +544,7 @@ static int zdel_one(ldb_context_t *context,
 }
 
 static int zset_incr_size(ldb_context_t *context, 
-                          const ldb_slice_t* name, 
-                          int64_t by){
+                          const ldb_slice_t* name, int64_t by){
   uint64_t size = 0;
   zset_size(context, name, &size);
   size += by;
@@ -544,13 +571,8 @@ static int zset_incr_size(ldb_context_t *context,
 }
 
 
-static ldb_zset_iterator_t* ziterator(ldb_context_t *context, 
-                                      const ldb_slice_t *name,
-                                      const ldb_slice_t *kstart, 
-                                      int64_t sstart, 
-                                      int64_t send, 
-                                      uint64_t limit,
-                                      int direction){
+static ldb_zset_iterator_t* ziterator(ldb_context_t *context, const ldb_slice_t *name,
+                                      const ldb_slice_t *kstart, int64_t sstart, int64_t send, uint64_t limit,int direction){
     ldb_slice_t *key_start, *key_end = NULL;
    if(direction == FORWARD){
        encode_zscore_key(ldb_slice_data(name),
