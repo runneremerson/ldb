@@ -334,15 +334,15 @@ end:
 }
 
 int zset_scan(ldb_context_t* context, const ldb_slice_t* name, 
-        const ldb_slice_t* key, int64_t start, int64_t end, uint64_t limit, int reverse, ldb_zset_iterator_t **piterator){
+        const ldb_slice_t* key, int64_t start, int64_t end, int reverse, ldb_zset_iterator_t **piterator){
   int64_t score = 0;
   if(ldb_slice_size(key)==0 || zset_get(context, name, key, &score) != LDB_OK ){
     score= start;
   }
   if(reverse == 0){
-    *piterator = ziterator(context, name, key, score, end, limit, FORWARD);
+    *piterator = ziterator(context, name, key, score, end, INT32_MAX, FORWARD);
   }else{
-    *piterator = ziterator(context, name, key, score, end, limit, BACKWARD);
+    *piterator = ziterator(context, name, key, score, end, INT32_MAX, BACKWARD);
   }
   return LDB_OK; 
 }
