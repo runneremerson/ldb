@@ -37,21 +37,17 @@ uint64_t ldb_meta_nextver(const ldb_meta_t* meta){
 }
 
 ldb_slice_t* ldb_meta_slice_create(const ldb_meta_t* meta){
-  char strvercare[sizeof(uint32_t)] = {0};
-  char strlastver[sizeof(uint64_t)] = {0};
-  char strnextver[sizeof(uint64_t)] = {0};
+  char strmeta[sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t)] = {0};
   if(meta != NULL){
-    leveldb_encode_fixed32(strvercare, meta->vercare_);
-    leveldb_encode_fixed64(strlastver, meta->lastver_);
-    leveldb_encode_fixed64(strnextver, meta->nextver_); 
+    leveldb_encode_fixed32(strmeta, meta->vercare_);
+    leveldb_encode_fixed64(strmeta + sizeof(uint32_t), meta->lastver_);
+    leveldb_encode_fixed64(strmeta + sizeof(uint64_t), meta->nextver_); 
   }else{
-    leveldb_encode_fixed32(strvercare, 0);
-    leveldb_encode_fixed64(strlastver, 0);
-    leveldb_encode_fixed64(strnextver, 0); 
+    leveldb_encode_fixed32(strmeta, 0);
+    leveldb_encode_fixed64(strmeta + sizeof(uint32_t), 0);
+    leveldb_encode_fixed64(strmeta + sizeof(uint64_t), 0); 
   }
-  ldb_slice_t *slice = ldb_slice_create(strvercare, sizeof(uint32_t));
-  ldb_slice_push_back(slice, strlastver, sizeof(uint64_t));
-  ldb_slice_push_back(slice, strnextver, sizeof(uint64_t));
+  ldb_slice_t *slice = ldb_slice_create(strmeta, sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t));
   return slice;
 }
 
