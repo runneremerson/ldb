@@ -26,9 +26,15 @@ static int zdel_one(ldb_context_t *context, const ldb_slice_t* name,
 static int zset_incr_size(ldb_context_t *context, 
                           const ldb_slice_t* name, int64_t by);
 
-
 static ldb_zset_iterator_t* ziterator(ldb_context_t *context, const ldb_slice_t *name,
                                       const ldb_slice_t *kstart, int64_t sstart, int64_t send, uint64_t limit,int direction);
+
+static int zrange(ldb_context_t* context, const ldb_slice_t* name,
+        uint64_t offset, uint64_t limit, int reverse, ldb_zset_iterator_t **piterator);
+
+static int zscan(ldb_context_t* context, const ldb_slice_t* name, 
+        const ldb_slice_t* key, int64_t start, int64_t end, int reverse, ldb_zset_iterator_t **piterator); 
+
 
 static void encode_zsize_key(const char* name, size_t namelen, const ldb_meta_t* meta, ldb_slice_t** pslice){
   ldb_slice_t* slice = ldb_meta_slice_create(meta);
@@ -308,44 +314,14 @@ end:
   return retval;
 }
 
-int zset_range(ldb_context_t* context, const ldb_slice_t* name,
-        uint64_t offset, uint64_t limit, int reverse, ldb_zset_iterator_t **piterator){
-  uint64_t start, end = 0;
-  start = LDB_SCORE_MIN;
-  if(offset < LDB_SCORE_MAX-limit){
-    end = offset + limit;
-  }else{
-    end = LDB_SCORE_MAX;
-  }
-  if(reverse == 0){
-    *piterator = ziterator(context, name, NULL, start, end, limit, FORWARD);  
-  }else{
-    *piterator = ziterator(context, name, NULL, end, start, limit, BACKWARD);
-  }
-  int retval = 0;
-  if(ldb_zset_iterator_skip(*piterator, offset)<0){
-    retval = LDB_OK_RANGE_HAVE_NONE;
-    goto end;
-  }
-  retval = LDB_OK;
 
-end:
-  return retval;
+int zset_range(ldb_context_t* context, const ldb_slice_t* name, 
+               uint64_t offset, uint64_t limit, int reverse, ldb_list_t **plist){
+return LDB_OK;
 }
 
-int zset_scan(ldb_context_t* context, const ldb_slice_t* name, 
-        const ldb_slice_t* key, int64_t start, int64_t end, int reverse, ldb_zset_iterator_t **piterator){
-  int64_t score = 0;
-  if(ldb_slice_size(key)==0 || zset_get(context, name, key, &score) != LDB_OK ){
-    score= start;
-  }
-  if(reverse == 0){
-    *piterator = ziterator(context, name, key, score, end, INT32_MAX, FORWARD);
-  }else{
-    *piterator = ziterator(context, name, key, score, end, INT32_MAX, BACKWARD);
-  }
-  return LDB_OK; 
-}
+
+
 
 int zset_incr(ldb_context_t* context, const ldb_slice_t* name, 
               const ldb_slice_t* key, const ldb_meta_t* meta, int64_t by, int64_t* val){
@@ -617,4 +593,43 @@ static ldb_zset_iterator_t* ziterator(ldb_context_t *context, const ldb_slice_t 
                          &key_end);
     }
     return ldb_zset_iterator_create(context, key_start, key_end, limit, direction);
+}
+
+static int zrange(ldb_context_t* context, const ldb_slice_t* name,
+        uint64_t offset, uint64_t limit, int reverse, ldb_zset_iterator_t **piterator){
+  uint64_t start, end = 0;
+  start = LDB_SCORE_MIN;
+  if(offset < LDB_SCORE_MAX-limit){
+    end = offset + limit;
+  }else{
+    end = LDB_SCORE_MAX;
+  }
+  if(reverse == 0){
+    *piterator = ziterator(context, name, NULL, start, end, limit, FORWARD);  
+  }else{
+    *piterator = ziterator(context, name, NULL, end, start, limit, BACKWARD);
+  }
+  int retval = 0;
+  if(ldb_zset_iterator_skip(*piterator, offset)<0){
+    retval = -1;
+    goto end;
+  }
+  retval = 0;
+
+end:
+  return retval;
+}
+
+static int zscan(ldb_context_t* context, const ldb_slice_t* name, 
+        const ldb_slice_t* key, int64_t start, int64_t end, int reverse, ldb_zset_iterator_t **piterator){
+  int64_t score = 0;
+  if(ldb_slice_size(key)==0 || zset_get(context, name, key, &score) != LDB_OK ){
+    score= start;
+  }
+  if(reverse == 0){
+    *piterator = ziterator(context, name, key, score, end, INT32_MAX, FORWARD);
+  }else{
+    *piterator = ziterator(context, name, key, score, end, INT32_MAX, BACKWARD);
+  }
+  return 0; 
 }

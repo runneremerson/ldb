@@ -5,7 +5,7 @@
 #include "ldb_slice.h"
 #include "ldb_meta.h"
 #include "ldb_context.h"
-#include "ldb_iterator.h"
+#include "ldb_list.h"
 
 #include <stdint.h>
 
@@ -33,11 +33,11 @@ int zset_get(ldb_context_t* context, const ldb_slice_t* name,
 int zset_rank(ldb_context_t* context, const ldb_slice_t* name, 
         const ldb_slice_t* key, int reverse, int64_t* rank);
 
-int zset_range(ldb_context_t* context, const ldb_slice_t* name,
-        uint64_t offset, uint64_t limit, int reverse, ldb_zset_iterator_t **piterator);
+int zset_range(ldb_context_t* context, const ldb_slice_t* name, 
+               uint64_t offset, uint64_t limit, int reverse, ldb_list_t **plist);
 
-int zset_scan(ldb_context_t* context, const ldb_slice_t* name, 
-        const ldb_slice_t* key, int64_t start, int64_t end, int reverse, ldb_zset_iterator_t **piterator); 
+int zset_scan(ldb_context_t* context, const ldb_slice_t* name,
+              int64_t start, int64_t end, int reverse, ldb_list_t **plist);
 
 
 #endif //LDB_T_ZSET_H

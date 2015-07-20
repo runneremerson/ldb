@@ -1,5 +1,6 @@
-#include "ldb_session.h"
-#include "ldb_context.h"
+#include "org_context.h"
+#include "ldb_define.h"
+#include "ldb_slice.h"
 #include "lmalloc.h"
 
 #include <stdint.h>
@@ -16,7 +17,7 @@
 #include <time.h>
 #include <sched.h>
 
-ldb_context_t *testContext = NULL;
+org_context_t *testContext = NULL;
 
 
 
@@ -57,6 +58,136 @@ int arr2[1024] = {0};
 
 int arr3[1024] = {0};
 
+
+typedef struct org_value_item_t{
+  uint64_t version_;
+  size_t data_len_;
+  char* data_;
+} org_value_item_t;
+
+
+static ldb_slice_t* org_meta_slice_create(){ 
+  char strmeta[sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t)] = {0};
+  ldb_slice_t *slice = ldb_slice_create(strmeta, sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t));
+  return slice;
+}
+
+
+static void org_encode_kv_key(const char* key, size_t keylen, ldb_slice_t** pslice){
+  ldb_slice_t* slice = org_meta_slice_create();
+  ldb_slice_push_back(slice, LDB_DATA_TYPE_KV, strlen(LDB_DATA_TYPE_KV));
+  ldb_slice_push_back(slice, key, keylen);
+  *pslice =  slice;
+}
+
+static int org_string_set(org_context_t* context, const ldb_slice_t* key, const ldb_slice_t* value){
+  int retval = 0;
+  if(ldb_slice_size(key) == 0){
+    fprintf(stderr, "empty key!\n");
+    retval = LDB_ERR;
+    goto end;
+  }
+  char *errptr = NULL;
+  leveldb_writeoptions_t* writeoptions = leveldb_writeoptions_create();
+  ldb_slice_t *slice_key = NULL;
+  org_encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice_key);
+  leveldb_put(context->database_, 
+              writeoptions, 
+              ldb_slice_data(slice_key), 
+              ldb_slice_size(slice_key), 
+              ldb_slice_data(value), 
+              ldb_slice_size(value), 
+              &errptr);
+  leveldb_writeoptions_destroy(writeoptions);
+  ldb_slice_destroy(slice_key);
+  if(errptr != NULL){
+    fprintf(stderr, "leveldb_put fail %s.\n", errptr);
+    leveldb_free(errptr);
+    retval = LDB_ERR;
+    goto end;
+  }
+  retval = LDB_OK;
+
+end:
+  return retval;
+}
+
+
+static int org_string_get(org_context_t* context, const ldb_slice_t* key, ldb_slice_t** pvalue){
+  char *val, *errptr = NULL;
+  size_t vallen = 0;
+  leveldb_readoptions_t* readoptions = leveldb_readoptions_create();
+  ldb_slice_t *slice_key = NULL;
+  org_encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), &slice_key);
+  val = leveldb_get(context->database_, readoptions, ldb_slice_data(slice_key), ldb_slice_size(slice_key), &vallen, &errptr);
+  leveldb_readoptions_destroy(readoptions);
+  ldb_slice_destroy(slice_key);
+  int retval = LDB_OK;
+  if(errptr != NULL){
+    fprintf(stderr, "leveldb_get fail %s.\n", errptr);
+    leveldb_free(errptr);
+    retval = LDB_ERR;
+    goto end;
+  }
+  if(val != NULL){
+    *pvalue = ldb_slice_create(val, vallen);
+    retval = LDB_OK;
+    leveldb_free(val);
+  }else{
+    retval = LDB_OK_NOT_EXIST;
+  }
+
+end:
+  return retval;
+}
+
+static int org_set(org_context_t* context, 
+            uint32_t area, 
+            char* key, 
+            size_t keylen, 
+            uint64_t lastver, 
+            int vercare, 
+            long exptime, 
+            org_value_item_t* item, 
+            int en){
+  int retval = 0;
+  ldb_slice_t *slice_key, *slice_val , *slice_value = NULL;
+  slice_key = ldb_slice_create(key, keylen);
+  slice_val = ldb_slice_create(item->data_, item->data_len_);
+  if(en || 1){
+    retval = org_string_set(context, slice_key, slice_val);
+  }
+
+end:
+  ldb_slice_destroy(slice_key);
+  ldb_slice_destroy(slice_val);
+  ldb_slice_destroy(slice_value);
+
+  return retval;
+}
+
+
+static int org_get(org_context_t* context, 
+            uint32_t area, 
+            char* key, 
+            size_t keylen, 
+            org_value_item_t** item){
+  int retval = 0;
+  ldb_slice_t *slice_key, *slice_val = NULL;
+  slice_key = ldb_slice_create(key, keylen);
+  retval = org_string_get(context, slice_key, &slice_val);
+  if(retval != LDB_OK){
+    goto end;
+  }
+  *item = (org_value_item_t*)lmalloc(sizeof(org_value_item_t));
+  retval = LDB_OK; 
+end:
+  ldb_slice_destroy(slice_key);
+  ldb_slice_destroy(slice_val);
+
+  return retval;
+}
+
 void* testSetString(void* no)
 {
 	BEGIN_FUNC;
@@ -83,12 +214,12 @@ void* testSetString(void* no)
 		snprintf(csKey, sizeof(csKey), "%d", iKey);
 		snprintf(csValue, sizeof(csValue), "%d", iValue);
 
-		value_item_t valueItem;
+		org_value_item_t valueItem;
 		memset((void*)&valueItem, 0, sizeof(valueItem));
 		valueItem.data_len_ = strlen(csValue);
 		valueItem.data_ = csValue;
 		valueItem.version_ = iVersion;
-		int ret = ldb_set(testContext, cArea, csKey, strlen(csKey), 0, 0, 0, &valueItem, 1);
+		int ret = org_set(testContext, cArea, csKey, strlen(csKey), 0, 0, 0, &valueItem, 1);
 	}
 
 	END_FUNC;
@@ -115,12 +246,12 @@ void* testGetString(void* no)
 
     snprintf(csKey, sizeof(csKey), "%u", iKey);
 
-    value_item_t item;
+    org_value_item_t item;
 
 
 	for(int i=0; i<TIMES; i++)
 	{
-		int ret = ldb_get(testContext, cArea, csKey, strlen(csKey), &item);
+		int ret = org_get(testContext, cArea, csKey, strlen(csKey), &item);
 	}
 
 	END_FUNC;
@@ -354,7 +485,7 @@ int testInit()
 {
 	//BEGIN_FUNC;
 
-    testContext = ldb_context_create("/tmp/testdb_ldb", 2048, 1024);
+    testContext = org_context_create("/tmp/testdb_org", 2048, 1024);
     if(testContext==NULL){
       printf("create ldb context failed, exit!\n");
       exit(1);
