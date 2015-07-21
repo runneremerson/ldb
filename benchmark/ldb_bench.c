@@ -350,11 +350,14 @@ int testSoloSetString(char* argv1, char* argv2)
 	return 0;
 }
 
-int testInit()
+int testInit(const char* name)
 {
 	//BEGIN_FUNC;
-
-    testContext = ldb_context_create("/tmp/testdb_ldb", 2048, 1024);
+    if(name !=NULL){
+        testContext = ldb_context_create(name, 2048, 1024);
+    }else{
+        testContext = ldb_context_create("/tmp/testdb_ldb", 2048, 1024);
+    }
     if(testContext==NULL){
       printf("create ldb context failed, exit!\n");
       exit(1);
@@ -368,13 +371,15 @@ int testInit()
 
 int main(int argc, char* argv[]){
 
-    if (argc < 3 )
-    {
+    if (argc < 3 ){
         printf("<thread no> <calls per thread>\n");
         exit(0);
     }
-
-	testInit();
+    if( argc >= 4){
+        testInit(argv[3]);
+    }else{
+	    testInit(NULL);
+    }
 
 	
 	testMultiGetString(argv[1], argv[2]);

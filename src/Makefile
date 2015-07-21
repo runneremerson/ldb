@@ -7,8 +7,8 @@ LDB_OBJS = ldb_session.o ldb_bytes.o ldb_context.o ldb_list.o ldb_meta.o ldb_sli
 ORG_OBJS = ldb_bytes.o ldb_list.o ldb_slice.o ldb_iterator.o lmalloc.o
 
 
-#CFLAGS= -std=gnu99 -O2 -I../ -I../../ -DUSE_TCMALLOC=1 -DUSE_INT=1 
-CFLAGS= -std=gnu99 -O0 -g -I../ -I../../ -DUSE_TCMALLOC=1 -DUSE_INT=1 
+CFLAGS= -std=gnu99 -O2 -I../ -I../../ -DUSE_TCMALLOC=1 -DUSE_INT=1 
+#CFLAGS= -std=gnu99 -O0 -g -I../ -I../../ -DUSE_TCMALLOC=1 -DUSE_INT=1 
 
 all: ${LDB_OBJS} ${ORG_OBJS}
 	ar -cru ../libldb.a ${LDB_OBJS}
