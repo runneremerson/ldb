@@ -32,7 +32,6 @@ int set_ldb_signal_handler(const char* name);
 
 //string
 int ldb_set(ldb_context_t* context,
-            uint32_t area, 
             char* key, 
             size_t keylen, 
             uint64_t lastver, 
@@ -41,7 +40,6 @@ int ldb_set(ldb_context_t* context,
             value_item_t* item, 
             int en);
 int ldb_mset(ldb_context_t* context, 
-             uint32_t area, 
              uint64_t lastver, 
              int vercare, 
              long exptime, 
@@ -52,13 +50,11 @@ int ldb_mset(ldb_context_t* context,
              int en);
 
 int ldb_get(ldb_context_t* context, 
-            uint32_t area, 
             char* key, 
             size_t keylen, 
             value_item_t** item);
 
 int ldb_mget(ldb_context_t* context,
-             uint32_t area,
              GoByteSlice* slice,
              int length,
              GoByteSliceSlice* items,
@@ -66,14 +62,12 @@ int ldb_mget(ldb_context_t* context,
              int* number);
 
 int ldb_del(ldb_context_t* context, 
-            uint32_t area, 
             char* key, 
             size_t keylen, 
             int vercare, 
             uint64_t version);
 
 int ldb_incrby(ldb_context_t* context,
-               uint32_t area,
                char* key,
                size_t keylen,
                uint64_t lastver,
@@ -88,7 +82,34 @@ int ldb_incrby(ldb_context_t* context,
 //hash
 
 //zset
+int ldb_zscore(ldb_context_t* context,
+              char* name,
+              size_t namelen,
+              char* key,
+              size_t keylen,
+              double* score);
 
+int ldb_zrange(ldb_context_t* context,
+               char* name,
+               size_t namelen,
+               int start,
+               int end,
+               value_item_t *items,
+               size_t itemnum,
+               double *scores,
+               size_t scorenum,
+               int withscore);
+
+int ldb_zrange_rev(ldb_context_t* context,
+                   char* name,
+                   size_t namelen,
+                   int start,
+                   int end,
+                   value_item_t* items,
+                   size_t itemnum,
+                   double *scores,
+                   size_t scorenum,
+                   int withscore);
 
 
 

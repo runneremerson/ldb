@@ -88,7 +88,7 @@ void* testSetString(void* no)
 		valueItem.data_len_ = strlen(csValue);
 		valueItem.data_ = csValue;
 		valueItem.version_ = iVersion;
-		int ret = ldb_set(testContext, cArea, csKey, strlen(csKey), 0, 0, 0, &valueItem, 1);
+		int ret = ldb_set(testContext, csKey, strlen(csKey), 0, 0, 0, &valueItem, 1);
 	}
 
 	END_FUNC;
@@ -120,7 +120,7 @@ void* testGetString(void* no)
 
 	for(int i=0; i<TIMES; i++)
 	{
-		int ret = ldb_get(testContext, cArea, csKey, strlen(csKey), &item);
+		int ret = ldb_get(testContext, csKey, strlen(csKey), &item);
 	}
 
 	END_FUNC;

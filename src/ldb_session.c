@@ -9,6 +9,7 @@
 #include "cgo_util/base.h"
 
 #include "t_kv.h"
+#include "t_zset.h"
 
 #include <leveldb-ldb/c.h>
 #include <string.h>
@@ -86,7 +87,6 @@ static char* malloc_and_copy(const ldb_slice_t* slice_val){
 
 
 int ldb_set(ldb_context_t* context, 
-            uint32_t area, 
             char* key, 
             size_t keylen, 
             uint64_t lastver, 
@@ -118,7 +118,6 @@ end:
 
 
 int ldb_mset(ldb_context_t* context, 
-             uint32_t area, 
              uint64_t lastver, 
              int vercare, 
              long exptime, 
@@ -187,7 +186,6 @@ end:
 }
 
 int ldb_get(ldb_context_t* context, 
-            uint32_t area, 
             char* key, 
             size_t keylen, 
             value_item_t** item){
@@ -213,7 +211,6 @@ end:
 
 
 int ldb_mget(ldb_context_t* context,
-             uint32_t area,
              GoByteSlice* slice,
              int length,
              GoByteSliceSlice* items,
@@ -275,7 +272,6 @@ end:
 }
 
 int ldb_del(ldb_context_t* context, 
-            uint32_t area, 
             char* key, 
             size_t keylen, 
             int vercare, 
@@ -292,7 +288,6 @@ end:
 }
 
 int ldb_incrby(ldb_context_t* context,
-               uint32_t area,
                char* key,
                size_t keylen,
                uint64_t lastver,
@@ -310,4 +305,43 @@ int ldb_incrby(ldb_context_t* context,
 end:
   ldb_slice_destroy(slice_key);
   return retval;
+}
+
+int ldb_zscore(ldb_context_t* context,
+              char* name,
+              size_t namelen,
+              char* key,
+              size_t keylen,
+              double* score){
+  int retval = 0;
+  ldb_slice_t *slice_name = ldb_slice_create(name, namelen);
+  ldb_slice_t *slice_key = ldb_slice_create(key, keylen);
+
+  int64_t iscore = 0;
+  retval = zset_get(context, slice_name, slice_key, &iscore);  
+  if(retval != LDB_OK){
+    goto end;
+  }
+  *score = (double)iscore;
+
+end:
+  ldb_slice_destroy(slice_name);
+  ldb_slice_destroy(slice_key);
+  return retval;
+}
+
+int ldb_zrange(ldb_context_t* context,
+               char* name,
+               size_t namelen,
+               int start,
+               int end,
+               value_item_t *items,
+               size_t itemnum,
+               double *scores,
+               size_t scorenum,
+               int withscore){
+  int retval = 0;
+
+end:
+  return retval; 
 }

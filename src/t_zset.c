@@ -238,6 +238,96 @@ end:
   return retval;
 }
 
+
+int zset_del_range_by_rank(ldb_context_t* context, const ldb_slice_t* name,
+                           const ldb_meta_t* meta, int rank_start, int rank_end, int64_t *deleted){
+  int retval = 0;
+  ldb_zset_iterator_t *iterator = NULL;
+  uint64_t offset, limit, size = 0;
+  retval = zset_size(context, name, &size);
+  if(retval != LDB_OK){
+    goto end;
+  }
+  if(rank_start < 0){
+    rank_start = rank_start + size; 
+  }
+  if(rank_end < 0 ){
+    rank_end = rank_end + size;
+  }
+  if(rank_start < 0){
+    rank_start = 0;
+  }
+  if(rank_start > rank_end || rank_start >= (int)size){
+    retval = LDB_OK_RANGE_HAVE_NONE;
+    goto end;
+  }
+  if(rank_end >= (int)size){
+    rank_end = (int)(size - 1);
+  }
+  offset = rank_start;
+  limit = (rank_end - rank_start) + 1;
+  if(zrange(context, name, offset, limit, 0, &iterator)<0){
+    retval = LDB_OK_RANGE_HAVE_NONE;
+    goto end;
+  }
+  do{
+    ldb_slice_t *slice_key, *slice_name, *key = NULL;
+    uint64_t value = 0;
+    ldb_zset_iterator_key(iterator, &slice_key);
+    if(decode_zscore_key( ldb_slice_data(slice_key),
+                       ldb_slice_size(slice_key),
+                       &slice_name,
+                       &key,
+                       &value)== 0){ 
+      if(zset_del(context, name, key, meta) == LDB_OK){
+        *deleted += 1;
+      }
+      ldb_slice_destroy(key);
+    }
+    ldb_slice_destroy(slice_key);
+  }while(!ldb_zset_iterator_next(iterator));
+
+  retval = LDB_OK;
+
+end:
+  ldb_zset_iterator_destroy(iterator);
+  return retval; 
+}
+
+
+int zset_del_range_by_score(ldb_context_t* context, const ldb_slice_t* name,
+                            const ldb_meta_t* meta, int64_t score_start, int64_t score_end, int *deleted){
+  int retval = 0;
+  ldb_zset_iterator_t *iterator = NULL;
+  if(zscan(context, name, NULL, score_start, score_end, 0, &iterator) < 0){
+    retval = LDB_OK_RANGE_HAVE_NONE;
+    goto end;
+  }
+
+  do{
+    ldb_slice_t *slice_key, *slice_name, *key = NULL;
+    uint64_t value = 0;
+    ldb_zset_iterator_key(iterator, &slice_key);
+    if(decode_zscore_key( ldb_slice_data(slice_key),
+                       ldb_slice_size(slice_key),
+                       &slice_name,
+                       &key,
+                       &value) == 0){ 
+      if(zset_del(context, name, key, meta) == LDB_OK){
+        *deleted += 1;
+      }
+      ldb_slice_destroy(key);
+    }
+    ldb_slice_destroy(slice_key);
+  }while(!ldb_zset_iterator_next(iterator));
+
+  ldb_zset_iterator_destroy(iterator);
+  retval = LDB_OK;
+
+end:
+  return retval;
+}
+
 int zset_get(ldb_context_t* context, const ldb_slice_t* name, 
              const ldb_slice_t* key, int64_t* score){ 
   char *val, *errptr = NULL;
@@ -316,11 +406,96 @@ end:
 
 
 int zset_range(ldb_context_t* context, const ldb_slice_t* name, 
-               uint64_t offset, uint64_t limit, int reverse, ldb_list_t **plist){
-return LDB_OK;
+               int rank_start, int rank_end, int reverse, ldb_list_t **plist){
+  int retval = 0;
+  uint64_t offset, limit, size = 0;
+  retval = zset_size(context, name, &size);
+  if(retval != LDB_OK){
+    goto end;
+  }
+  if(rank_start < 0){
+    rank_start = rank_start + size; 
+  }
+  if(rank_end < 0 ){
+    rank_end = rank_end + size;
+  }
+  if(rank_start < 0){
+    rank_start = 0;
+  }
+  if(rank_start > rank_end || rank_start >= (int)size){
+    retval = LDB_OK_RANGE_HAVE_NONE;
+    goto end;
+  }
+  if(rank_end >= (int)size){
+    rank_end = (int)(size - 1);
+  }
+  offset = rank_start;
+  limit = (rank_end - rank_start) + 1;
+  ldb_zset_iterator_t *iterator = NULL;
+  if(zrange(context, name, offset, limit, reverse, &iterator)<0){
+    retval = LDB_OK_RANGE_HAVE_NONE;
+    goto end;
+  }
+  do{
+    ldb_slice_t *slice_key, *slice_name, *slice_node = NULL;
+    uint64_t value = 0;
+    ldb_zset_iterator_key(iterator, &slice_key);
+    if(decode_zscore_key( ldb_slice_data(slice_key),
+                       ldb_slice_size(slice_key),
+                       &slice_name,
+                       &slice_node,
+                       &value)==0){
+       
+      ldb_list_node_t* node = ldb_list_node_create();
+      node->type_ = LDB_LIST_NODE_TYPE_SLICE;
+      node->value_ = value;
+      node->data_ = slice_node;
+      rpush_ldb_list_node(*plist, node);
+    }
+    ldb_slice_destroy(slice_key);
+  }while(!ldb_zset_iterator_next(iterator));
+
+  ldb_zset_iterator_destroy(iterator);
+  retval = LDB_OK;
+ 
+end:
+  return retval;
 }
 
 
+int zset_scan(ldb_context_t* context, const ldb_slice_t* name,
+              int64_t score_start, int64_t score_end, int reverse, ldb_list_t **plist){
+  int retval = 0;
+  ldb_zset_iterator_t *iterator = NULL;
+  if(zscan(context, name, NULL, score_start, score_end, reverse, &iterator) < 0){
+    retval = LDB_OK_RANGE_HAVE_NONE;
+    goto end;
+  }
+
+  do{
+    ldb_slice_t *slice_key, *slice_name, *slice_node = NULL;
+    uint64_t value = 0;
+    ldb_zset_iterator_key(iterator, &slice_key);
+    if(decode_zscore_key( ldb_slice_data(slice_key),
+                       ldb_slice_size(slice_key),
+                       &slice_name,
+                       &slice_node,
+                       &value) == 0){
+      ldb_list_node_t* node = ldb_list_node_create();
+      node->type_ = LDB_LIST_NODE_TYPE_SLICE;
+      node->value_ = value;
+      node->data_ = slice_node;
+      rpush_ldb_list_node(*plist, node);
+    }
+    ldb_slice_destroy(slice_key);
+  }while(!ldb_zset_iterator_next(iterator));
+
+  ldb_zset_iterator_destroy(iterator);
+  retval = LDB_OK;
+
+end:
+  return retval;
+}
 
 
 int zset_incr(ldb_context_t* context, const ldb_slice_t* name, 
