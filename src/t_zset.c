@@ -1,10 +1,11 @@
+#include "t_zset.h"
 #include "ldb_define.h"
 #include "ldb_slice.h"
 #include "ldb_bytes.h"
 #include "ldb_meta.h"
+#include "ldb_list.h"
 #include "ldb_iterator.h"
 #include "ldb_context.h"
-#include "t_zset.h"
 #include "util.h"
 
 #include <leveldb-ldb/c.h>
@@ -406,7 +407,7 @@ end:
 
 
 int zset_range(ldb_context_t* context, const ldb_slice_t* name, 
-               int rank_start, int rank_end, int reverse, ldb_list_t **plist){
+               int rank_start, int rank_end, int reverse, ldb_list_t **pkeylist, ldb_list_t** pmetlist){
   int retval = 0;
   uint64_t offset, limit, size = 0;
   retval = zset_size(context, name, &size);
@@ -436,25 +437,37 @@ int zset_range(ldb_context_t* context, const ldb_slice_t* name,
     retval = LDB_OK_RANGE_HAVE_NONE;
     goto end;
   }
+  ldb_list_t *keylist = ldb_list_create();
+  ldb_list_t *metlist = ldb_list_create();
   do{
-    ldb_slice_t *slice_key, *slice_name, *slice_node = NULL;
-    uint64_t value = 0;
+    ldb_slice_t *slice_key, *slice_val, *slice_name, *slice_node = NULL;
+    int64_t value = 0;
     ldb_zset_iterator_key(iterator, &slice_key);
     if(decode_zscore_key( ldb_slice_data(slice_key),
                        ldb_slice_size(slice_key),
                        &slice_name,
                        &slice_node,
-                       &value)==0){
-       
-      ldb_list_node_t* node = ldb_list_node_create();
-      node->type_ = LDB_LIST_NODE_TYPE_SLICE;
-      node->value_ = value;
-      node->data_ = slice_node;
-      rpush_ldb_list_node(*plist, node);
+                       &value)==0){ 
+      //first node
+      ldb_list_node_t* key_node = ldb_list_node_create();
+      key_node->type_ = LDB_LIST_NODE_TYPE_SLICE;
+      key_node->value_ = value;
+      key_node->data_ = slice_node;
+      rpush_ldb_list_node(keylist, key_node);
+      //second
+      ldb_zset_iterator_val(iterator, &slice_val);
+      uint64_t version = leveldb_decode_fixed64(ldb_slice_data(slice_val));
+      ldb_list_node_t* met_node = ldb_list_node_create();
+      met_node->type_ = LDB_LIST_NODE_TYPE_BASE;
+      met_node->value_ = version;
+      met_node->data_ = NULL;
+      rpush_ldb_list_node(metlist, met_node);
     }
     ldb_slice_destroy(slice_key);
+    ldb_slice_destroy(slice_val);
   }while(!ldb_zset_iterator_next(iterator));
-
+  *pkeylist = keylist;
+  *pmetlist = metlist;
   ldb_zset_iterator_destroy(iterator);
   retval = LDB_OK;
  
@@ -464,7 +477,7 @@ end:
 
 
 int zset_scan(ldb_context_t* context, const ldb_slice_t* name,
-              int64_t score_start, int64_t score_end, int reverse, ldb_list_t **plist){
+              int64_t score_start, int64_t score_end, int reverse, ldb_list_t **pkeylist, ldb_list_t **pmetlist){
   int retval = 0;
   ldb_zset_iterator_t *iterator = NULL;
   if(zscan(context, name, NULL, score_start, score_end, reverse, &iterator) < 0){
@@ -472,24 +485,38 @@ int zset_scan(ldb_context_t* context, const ldb_slice_t* name,
     goto end;
   }
 
+  ldb_list_t *keylist = ldb_list_create();
+  ldb_list_t *metlist = ldb_list_create();
   do{
-    ldb_slice_t *slice_key, *slice_name, *slice_node = NULL;
-    uint64_t value = 0;
+    ldb_slice_t *slice_key, *slice_val, *slice_name, *slice_node = NULL;
+    int64_t value = 0;
     ldb_zset_iterator_key(iterator, &slice_key);
     if(decode_zscore_key( ldb_slice_data(slice_key),
                        ldb_slice_size(slice_key),
                        &slice_name,
                        &slice_node,
                        &value) == 0){
-      ldb_list_node_t* node = ldb_list_node_create();
-      node->type_ = LDB_LIST_NODE_TYPE_SLICE;
-      node->value_ = value;
-      node->data_ = slice_node;
-      rpush_ldb_list_node(*plist, node);
+      //first
+      ldb_list_node_t* key_node = ldb_list_node_create();
+      key_node->type_ = LDB_LIST_NODE_TYPE_SLICE;
+      key_node->value_ = value;
+      key_node->data_ = slice_node;
+      rpush_ldb_list_node(keylist, key_node);
+      //second
+      ldb_zset_iterator_val(iterator, &slice_val);
+      uint64_t version = leveldb_decode_fixed64(ldb_slice_data(slice_val));
+      ldb_list_node_t* met_node = ldb_list_node_create();
+      met_node->type_ = LDB_LIST_NODE_TYPE_BASE;
+      met_node->value_ = version;
+      met_node->data_ = NULL;
+      rpush_ldb_list_node(metlist, met_node);
     }
     ldb_slice_destroy(slice_key);
+    ldb_slice_destroy(slice_val);
   }while(!ldb_zset_iterator_next(iterator));
 
+  *pkeylist = keylist;
+  *pmetlist = metlist;
   ldb_zset_iterator_destroy(iterator);
   retval = LDB_OK;
 
@@ -623,12 +650,13 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name,
                       score,
                       &slice_key2);
     //add zscore key
-    ldb_slice_t *slice_val2 = ldb_slice_create(NULL, 0);
+    char buf0[sizeof(uint64_t)] = {0};
+    leveldb_encode_fixed64(buf0, ldb_meta_nextver(meta));
     ldb_context_writebatch_put(context,
                                ldb_slice_data(slice_key2),
                                ldb_slice_size(slice_key2),
-                               ldb_slice_data(slice_val2),
-                               ldb_slice_size(slice_val2));
+                               buf0,
+                               sizeof(buf0));
 
     ldb_slice_t *slice_key0 = NULL;
     //update zset
@@ -639,12 +667,12 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name,
                     meta,
                     &slice_key0);
 
-    char buf[sizeof(int64_t)] = {0};
-    leveldb_encode_fixed64(buf, score);
+    char buf1[sizeof(int64_t)] = {0};
+    leveldb_encode_fixed64(buf1, score);
     ldb_context_writebatch_put(context,
                                ldb_slice_data(slice_key0),
                                ldb_slice_size(slice_key0),
-                               buf,
+                               buf1,
                                sizeof(int64_t));
     return found ? 0 : 1;
   }
@@ -724,7 +752,8 @@ static int zset_incr_size(ldb_context_t *context,
 
 static ldb_zset_iterator_t* ziterator(ldb_context_t *context, const ldb_slice_t *name,
                                       const ldb_slice_t *kstart, int64_t sstart, int64_t send, uint64_t limit,int direction){
-    ldb_slice_t *key_start, *key_end = NULL;
+    ldb_slice_t *key_end = NULL;
+    ldb_slice_t *key_start = NULL;
    if(direction == FORWARD){
        encode_zscore_key(ldb_slice_data(name),
                          ldb_slice_size(name),

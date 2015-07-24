@@ -52,7 +52,7 @@ int ldb_mset(ldb_context_t* context,
 int ldb_get(ldb_context_t* context, 
             char* key, 
             size_t keylen, 
-            value_item_t** item);
+            value_item_t* item);
 
 int ldb_mget(ldb_context_t* context,
              GoByteSlice* slice,
@@ -87,31 +87,51 @@ int ldb_zscore(ldb_context_t* context,
               size_t namelen,
               char* key,
               size_t keylen,
-              double* score);
+              int64_t* score);
 
-int ldb_zrange(ldb_context_t* context,
-               char* name,
-               size_t namelen,
-               int start,
-               int end,
-               value_item_t *items,
-               size_t itemnum,
-               double *scores,
-               size_t scorenum,
-               int withscore);
-
-int ldb_zrange_rev(ldb_context_t* context,
-                   char* name,
-                   size_t namelen,
-                   int start,
-                   int end,
-                   value_item_t* items,
-                   size_t itemnum,
-                   double *scores,
-                   size_t scorenum,
-                   int withscore);
+int ldb_zrange_by_rank(ldb_context_t* context,
+                       char* name,
+                       size_t namelen,
+                       int rank_start,
+                       int rank_end,
+                       value_item_t** items,
+                       size_t* itemnum,
+                       int64_t** scores,
+                       size_t* scorenum,
+                       int withscore,
+                       int reverse);
 
 
+int ldb_zrange_by_score(ldb_context_t* context,
+                        char* name,
+                        size_t namelen,
+                        int64_t score_start,
+                        int64_t score_end,
+                        value_item_t** items,
+                        size_t* itemnum,
+                        int64_t** scores,
+                        size_t* scorenum,
+                        int reverse,
+                        int withscore);
+
+int ldb_zadd(ldb_context_t* context,
+             char* name,
+             size_t namelen,
+             uint64_t version,
+             int vercare,
+             long exptime,
+             value_item_t* keys,
+             int64_t* scores,
+             size_t keynum,
+             int** retvals);
+
+int ldb_zrank(ldb_context_t* context,
+              char* name,
+              size_t namelen,
+              char* key,
+              size_t keylen,
+              int reverse,
+              long long* rank);
 
 
 #endif //LDB_SESSION_H

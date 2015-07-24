@@ -34,10 +34,10 @@ int zset_rank(ldb_context_t* context, const ldb_slice_t* name,
         const ldb_slice_t* key, int reverse, int64_t* rank);
 
 int zset_range(ldb_context_t* context, const ldb_slice_t* name, 
-               int rank_start, int rank_end, int reverse, ldb_list_t **plist);
+               int rank_start, int rank_end, int reverse, ldb_list_t **pkeylist, ldb_list_t **pmetlist);
 
 int zset_scan(ldb_context_t* context, const ldb_slice_t* name,
-              int64_t score_start, int64_t score_end, int reverse, ldb_list_t **plist);
+              int64_t score_start, int64_t score_end, int reverse, ldb_list_t **pkeylist, ldb_list_t **pmetlist);
 
 #endif //LDB_T_ZSET_H
 

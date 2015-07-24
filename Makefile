@@ -3,7 +3,7 @@ MAKE = make
 
 all:
 	cd src/; ${MAKE}
-	cd benchmark/; ${MAKE}
+	#cd benchmark/; ${MAKE}
 	cd test/; ${MAKE}
 
 clean:

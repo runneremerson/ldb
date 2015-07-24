@@ -171,7 +171,7 @@ static int org_get(org_context_t* context,
             uint32_t area, 
             char* key, 
             size_t keylen, 
-            org_value_item_t** item){
+            org_value_item_t* item){
   int retval = 0;
   ldb_slice_t *slice_key, *slice_val = NULL;
   slice_key = ldb_slice_create(key, keylen);
@@ -179,7 +179,6 @@ static int org_get(org_context_t* context,
   if(retval != LDB_OK){
     goto end;
   }
-  *item = (org_value_item_t*)lmalloc(sizeof(org_value_item_t));
   retval = LDB_OK; 
 end:
   ldb_slice_destroy(slice_key);
