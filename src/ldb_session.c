@@ -501,8 +501,32 @@ int ldb_zrank(ldb_context_t* context,
   slice_key = ldb_slice_create(key, keylen);
   int64_t rank_val = 0;
   retval = zset_rank(context, slice_name, slice_key, reverse, &rank_val);
+  if(retval != LDB_OK){
+    goto end;
+  }
   *rank = (long long)rank_val;
 
 end:
+  ldb_slice_destroy(slice_name);
+  return retval;
+}
+
+int ldb_zcount(ldb_context_t* context,
+               char* name,
+               size_t namelen,
+               int64_t score_start,
+               int64_t score_end,
+               long long* count){
+  int retval = 0;
+  ldb_slice_t *slice_name = ldb_slice_create(name, namelen);
+  uint64_t count_val = 0;
+  retval = zset_count(context, slice_name, score_start, score_end, &count_val); 
+  if(retval != LDB_OK){
+    goto end;
+  }
+  *count = (long long)count_val;
+
+end:
+  ldb_slice_destroy(slice_name);
   return retval;
 }

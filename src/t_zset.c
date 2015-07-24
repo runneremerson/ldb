@@ -384,7 +384,7 @@ int zset_rank(ldb_context_t* context, const ldb_slice_t* name,
   uint64_t tmp = 0;
   while(1){
     if(ldb_zset_iterator_next(iterator)!=0){
-      retval = LDB_ERR;
+      retval = LDB_OK_NOT_EXIST;
       goto end; 
     }
     ldb_slice_t *slice_key = NULL;
@@ -393,11 +393,11 @@ int zset_rank(ldb_context_t* context, const ldb_slice_t* name,
                            ldb_slice_size(key),
                            ldb_slice_data(slice_key),
                            ldb_slice_size(slice_key))==0){
+      retval = LDB_OK;
       break;
     }
     ++tmp;
   }
-  retval = LDB_OK;
   *rank = tmp;
 
 end:
@@ -405,6 +405,24 @@ end:
   return retval;
 }
 
+int zset_count(ldb_context_t* context, const ldb_slice_t* name,
+        int64_t score_start, int64_t score_end, uint64_t *count){
+  int retval = 0;
+  ldb_zset_iterator_t *iterator = NULL;
+  if(zscan(context, name, NULL, score_start, score_end, 0, &iterator) < 0){
+    retval = LDB_OK_RANGE_HAVE_NONE;
+    goto end;
+  }
+  *count = 0;
+  while(!ldb_zset_iterator_next(iterator)){
+    (*count) += 1;
+  }
+  retval = LDB_OK;
+
+end:
+  ldb_zset_iterator_destroy(iterator);
+  return retval;
+}
 
 int zset_range(ldb_context_t* context, const ldb_slice_t* name, 
                int rank_start, int rank_end, int reverse, ldb_list_t **pkeylist, ldb_list_t** pmetlist){

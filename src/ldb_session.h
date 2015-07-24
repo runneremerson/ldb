@@ -25,7 +25,6 @@ value_item_t* create_value_item_array( size_t size);
 
 
 
-
 int set_ldb_signal_handler(const char* name);
 
 
@@ -132,6 +131,13 @@ int ldb_zrank(ldb_context_t* context,
               size_t keylen,
               int reverse,
               long long* rank);
+
+int ldb_zcount(ldb_context_t* context,
+               char* name,
+               size_t namelen,
+               int64_t score_start,
+               int64_t score_end,
+               long long* count);
 
 
 #endif //LDB_SESSION_H
