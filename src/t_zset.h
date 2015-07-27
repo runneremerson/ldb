@@ -16,10 +16,10 @@ int zset_del(ldb_context_t* context, const ldb_slice_t* name,
         const ldb_slice_t* key, const ldb_meta_t* meta);
 
 int zset_del_range_by_rank(ldb_context_t* context, const ldb_slice_t* name,
-        const ldb_meta_t* meta, int rank_start, int rank_end, int64_t *deleted);
+        const ldb_meta_t* meta, int rank_start, int rank_end, uint64_t *deleted);
 
 int zset_del_range_by_score(ldb_context_t* context, const ldb_slice_t* name,
-        const ldb_meta_t* meta, int64_t score_start, int64_t score_end, int *deleted);
+        const ldb_meta_t* meta, int64_t score_start, int64_t score_end, uint64_t *deleted);
 
 int zset_incr(ldb_context_t* context, const ldb_slice_t* name, 
         const ldb_slice_t* key, const ldb_meta_t* meta,  int64_t by, int64_t* val);

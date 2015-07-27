@@ -241,7 +241,7 @@ end:
 
 
 int zset_del_range_by_rank(ldb_context_t* context, const ldb_slice_t* name,
-                           const ldb_meta_t* meta, int rank_start, int rank_end, int64_t *deleted){
+                           const ldb_meta_t* meta, int rank_start, int rank_end, uint64_t *deleted){
   int retval = 0;
   ldb_zset_iterator_t *iterator = NULL;
   uint64_t offset, limit, size = 0;
@@ -271,6 +271,7 @@ int zset_del_range_by_rank(ldb_context_t* context, const ldb_slice_t* name,
     retval = LDB_OK_RANGE_HAVE_NONE;
     goto end;
   }
+  (*deleted) = 0;
   do{
     ldb_slice_t *slice_key, *slice_name, *key = NULL;
     uint64_t value = 0;
@@ -297,7 +298,7 @@ end:
 
 
 int zset_del_range_by_score(ldb_context_t* context, const ldb_slice_t* name,
-                            const ldb_meta_t* meta, int64_t score_start, int64_t score_end, int *deleted){
+                            const ldb_meta_t* meta, int64_t score_start, int64_t score_end, uint64_t *deleted){
   int retval = 0;
   ldb_zset_iterator_t *iterator = NULL;
   if(zscan(context, name, NULL, score_start, score_end, 0, &iterator) < 0){
@@ -305,6 +306,7 @@ int zset_del_range_by_score(ldb_context_t* context, const ldb_slice_t* name,
     goto end;
   }
 
+  (*deleted) = 0;
   do{
     ldb_slice_t *slice_key, *slice_name, *key = NULL;
     uint64_t value = 0;

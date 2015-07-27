@@ -130,14 +130,62 @@ int ldb_zrank(ldb_context_t* context,
               char* key,
               size_t keylen,
               int reverse,
-              long long* rank);
+              uint64_t* rank);
 
 int ldb_zcount(ldb_context_t* context,
                char* name,
                size_t namelen,
                int64_t score_start,
                int64_t score_end,
-               long long* count);
+               uint64_t* count);
+
+int ldb_zincrby(ldb_context_t* context,
+                char* name,
+                size_t namelen,
+                uint64_t lastver,
+                int vercare,
+                long exptime,
+                value_item_t* item,
+                int64_t by,
+                int64_t* score);
+
+int ldb_zrem(ldb_context_t* context,
+             char* name,
+             size_t namelen,
+             uint64_t lastver,
+             int vercare,
+             long exptime,
+             value_item_t* items,
+             size_t itemnum,
+             int**retvals);
+
+int ldb_zrem_by_rank(ldb_context_t* context,
+                     char* name,
+                     size_t namelen,
+                     uint64_t nextver,
+                     int vercare,
+                     long exptime,
+                     int rank_start,
+                     int rank_end,
+                     uint64_t* deleted);
+
+int ldb_zrem_by_score(ldb_context_t* context,
+                      char* name,
+                      size_t namelen,
+                      uint64_t nextver,
+                      int vercare,
+                      long exptime,
+                      int64_t score_start,
+                      int64_t score_end,
+                      uint64_t* deleted); 
+
+int ldb_zcard(ldb_context_t* context,
+              char* name,
+              size_t namelen,
+              uint64_t* size);
+
+
+
 
 
 #endif //LDB_SESSION_H
