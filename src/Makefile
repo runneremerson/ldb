@@ -2,7 +2,7 @@ CC=gcc
 MAKE=make
 
 LDB_OBJS = ldb_session.o ldb_bytes.o ldb_context.o ldb_list.o ldb_meta.o ldb_slice.o \
-	   ldb_iterator.o lmalloc.o util.o t_kv.o t_zset.o 
+	   ldb_iterator.o lmalloc.o util.o t_kv.o t_zset.o t_hash.o 
 
 ORG_OBJS = ldb_bytes.o ldb_list.o ldb_slice.o ldb_iterator.o lmalloc.o util.o
 
@@ -37,6 +37,8 @@ t_kv.o: t_kv.h t_kv.c
 	${CC} ${CFLAGS} -c t_kv.c
 t_zset.o: t_zset.h t_zset.c
 	${CC} ${CFLAGS} -c t_zset.c
+t_hash.o: t_hash.h t_hash.c
+	${CC} ${CFLAGS} -c t_hash.c
 
 
 

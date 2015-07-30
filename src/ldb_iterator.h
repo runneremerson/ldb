@@ -12,20 +12,21 @@ enum {
     BACKWARD = 1
 };
 
-typedef struct ldb_zset_iterator_t ldb_zset_iterator_t;
-typedef struct ldb_hash_iterator_t ldb_hash_iterator_t;
+typedef struct ldb_data_iterator_t ldb_data_iterator_t;
 
 
-ldb_zset_iterator_t* ldb_zset_iterator_create(ldb_context_t *context, const ldb_slice_t *start, const ldb_slice_t *end, uint64_t limit, int direction);
-void ldb_zset_iterator_destroy(ldb_zset_iterator_t* ziterator);
+ldb_data_iterator_t* ldb_data_iterator_create(ldb_context_t *context, 
+                                              ldb_slice_t *type, ldb_slice_t *start, ldb_slice_t *end, uint64_t limit, int direction);
+void ldb_data_iterator_destroy(ldb_data_iterator_t* iterator);
 
-int ldb_zset_iterator_skip(ldb_zset_iterator_t *ziterator, uint64_t offset);
+int ldb_data_iterator_skip(ldb_data_iterator_t *iterator, uint64_t offset);
 
-int ldb_zset_iterator_next(ldb_zset_iterator_t *ziterator);
+int ldb_data_iterator_next(ldb_data_iterator_t *iterator);
 
-void ldb_zset_iterator_val(const ldb_zset_iterator_t *ziterator, ldb_slice_t **pslice);
+void ldb_data_iterator_val(const ldb_data_iterator_t *iterator, ldb_slice_t **pslice);
 
-void ldb_zset_iterator_key(const ldb_zset_iterator_t *ziterator, ldb_slice_t **pslice); 
+void ldb_data_iterator_key(const ldb_data_iterator_t *iterator, ldb_slice_t **pslice); 
+
 
 
 #endif //LDB_ITERATOR_H
