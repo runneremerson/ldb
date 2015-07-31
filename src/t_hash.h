@@ -9,6 +9,14 @@
 #include <stdint.h>
 
 
+void encode_hsize_key(const char* name, size_t namelen, const ldb_meta_t* meta, ldb_slice_t** pslice);
+int decode_hsize_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice);
+
+
+void encode_hash_key(const char* name, size_t namelen, const char* key, size_t keylen, const ldb_meta_t* meta, ldb_slice_t** pslice);
+int decode_hash_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t **pslice_name, ldb_slice_t **pslice_key);
+
+
 
 int hash_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, ldb_slice_t** pslice);
 

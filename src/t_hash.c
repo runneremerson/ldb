@@ -25,11 +25,11 @@ static int hash_incr_size(ldb_context_t* context, const ldb_slice_t* name,
                     int64_t by);
 
 static int hscan(ldb_context_t* context, const ldb_slice_t* name,
-                 const ldb_slice_t* kstart, const ldb_slice_t* kend, uint64_t limit, int direction, ldb_data_iterator_t** piterator);
+                 const ldb_slice_t* kstart, const ldb_slice_t* kend, uint64_t limit, int reverse, ldb_hash_iterator_t** piterator);
 
 
 
-static void encode_hsize_key(const char* name, size_t namelen, const ldb_meta_t* meta, ldb_slice_t** pslice){
+void encode_hsize_key(const char* name, size_t namelen, const ldb_meta_t* meta, ldb_slice_t** pslice){
   ldb_slice_t* slice = ldb_meta_slice_create(meta);
   ldb_slice_push_back(slice, LDB_DATA_TYPE_HSIZE, strlen(LDB_DATA_TYPE_HSIZE));
   ldb_slice_push_back(slice, name, namelen);
@@ -37,7 +37,7 @@ static void encode_hsize_key(const char* name, size_t namelen, const ldb_meta_t*
 }
 
 
-static int decode_hsize_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice){
+int decode_hsize_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice){
   int retval = 0;
   ldb_slice_t* key_slice = NULL;
   ldb_bytes_t* bytes = ldb_bytes_create(ldbkey, ldbkeylen);
@@ -63,7 +63,7 @@ end:
   return retval;
 }
 
-static void encode_hash_key(const char* name, size_t namelen, const char* key, size_t keylen, const ldb_meta_t* meta, ldb_slice_t** pslice){
+void encode_hash_key(const char* name, size_t namelen, const char* key, size_t keylen, const ldb_meta_t* meta, ldb_slice_t** pslice){
   uint8_t len = 0;
   ldb_slice_t *slice = ldb_meta_slice_create(meta);
   ldb_slice_push_back(slice, LDB_DATA_TYPE_HASH, strlen(LDB_DATA_TYPE_HASH));
@@ -74,7 +74,7 @@ static void encode_hash_key(const char* name, size_t namelen, const char* key, s
   ldb_slice_push_back(slice, key, keylen);
 }
 
-static int decode_hash_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t **pslice_name, ldb_slice_t **pslice_key){
+int decode_hash_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t **pslice_name, ldb_slice_t **pslice_key){
   int retval = 0;
   ldb_slice_t *slice_name, *slice_key = NULL;
   ldb_bytes_t *bytes = ldb_bytes_create(ldbkey, ldbkeylen);
@@ -177,6 +177,21 @@ int hash_mget(ldb_context_t* context, const ldb_slice_t* name, const ldb_list_t*
 
 end:
   ldb_list_iterator_destroy(keyiterator);
+  return retval;
+}
+
+int hash_getall(ldb_context_t* context, const ldb_slice_t* name, ldb_list_t** pkeylist, ldb_list_t** pvallist, ldb_list_t** pmetalist){
+  int retval = 0;
+  ldb_hash_iterator_t* iterator = NULL;
+  if(hscan(context, name, NULL, NULL, 20000000, 0, &iterator)!=0){
+    retval = LDB_ERR;
+    goto end;
+  }
+  
+  
+
+end:
+  ldb_hash_iterator_destroy(iterator);
   return retval;
 }
 
@@ -397,10 +412,9 @@ static int hash_incr_size(ldb_context_t* context, const ldb_slice_t* name,
 
 
 static int hscan(ldb_context_t* context, const ldb_slice_t* name,
-                 const ldb_slice_t* kstart, const ldb_slice_t* kend, uint64_t limit, int reverse, ldb_data_iterator_t** piterator){
+                 const ldb_slice_t* kstart, const ldb_slice_t* kend, uint64_t limit, int reverse, ldb_hash_iterator_t** piterator){
 
-  ldb_slice_t *type, *slice_start, *slice_end = NULL;
-  type = ldb_slice_create(LDB_DATA_TYPE_HASH, strlen(LDB_DATA_TYPE_HASH));
+  ldb_slice_t *slice_start, *slice_end = NULL;
   if(!reverse){
 
     encode_hash_key(ldb_slice_data(name),
@@ -419,7 +433,7 @@ static int hscan(ldb_context_t* context, const ldb_slice_t* name,
       ldb_slice_push_back(slice_end, "\xff", strlen("\xff"));
     }
 
-    *piterator = ldb_data_iterator_create(context, type, slice_start, slice_end, limit, FORWARD);
+    *piterator = ldb_hash_iterator_create(context, name, slice_start, slice_end, limit, FORWARD);
   }else{
     encode_hash_key(ldb_slice_data(name),
                     ldb_slice_size(name),
@@ -436,7 +450,7 @@ static int hscan(ldb_context_t* context, const ldb_slice_t* name,
                     ldb_slice_size(kend),
                     NULL,
                     &slice_end);
-    *piterator = ldb_data_iterator_create(context, type, slice_start, slice_end, limit, BACKWARD);
+    *piterator = ldb_hash_iterator_create(context, name, slice_start, slice_end, limit, BACKWARD);
   }
   return 0;
 }

@@ -9,6 +9,17 @@
 
 #include <stdint.h>
 
+
+void encode_zsize_key(const char* name, size_t namelen, const ldb_meta_t* meta, ldb_slice_t** pslice);
+int decode_zsize_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice);
+
+void encode_zset_key(const char* name, size_t namelen, const char* key, size_t keylen, const ldb_meta_t* meta, ldb_slice_t** pslice);
+int decode_zset_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice_name, ldb_slice_t** pslice_key);
+
+void encode_zscore_key(const char* name, size_t namelen, const char* key, size_t keylen, const ldb_meta_t* meta, int64_t score, ldb_slice_t** pslice);
+int decode_zscore_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice_name, ldb_slice_t** pslice_key,  int64_t *pscore);
+
+
 int zset_add(ldb_context_t* context, const ldb_slice_t* name, 
         const ldb_slice_t* key, const ldb_meta_t* meta, int64_t score); 
 
