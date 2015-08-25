@@ -3,7 +3,7 @@
 
 #include "ldb_context.h"
 
-#include "cgo_util/base.h"
+#include "util/cgo_util_base.h"
 
 
 #include <stdint.h>
