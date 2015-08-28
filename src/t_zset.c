@@ -311,17 +311,18 @@ int zset_del_range_by_score(ldb_context_t* context, const ldb_slice_t* name,
     ldb_slice_t *slice_key, *slice_name, *key = NULL;
     uint64_t value = 0;
     ldb_zset_iterator_key(iterator, &slice_key);
-    if(decode_zscore_key( ldb_slice_data(slice_key),
-                       ldb_slice_size(slice_key),
-                       &slice_name,
-                       &key,
-                       &value) == 0){ 
+    if(decode_zscore_key(ldb_slice_data(slice_key),
+                         ldb_slice_size(slice_key),
+                         &slice_name,
+                         &key,
+                         &value) == 0){ 
       if(zset_del(context, name, key, meta) == LDB_OK){
         *deleted += 1;
       }
       ldb_slice_destroy(key);
     }
     ldb_slice_destroy(slice_key);
+    ldb_slice_destroy(slice_name);
   }while(!ldb_zset_iterator_next(iterator));
 
   ldb_zset_iterator_destroy(iterator);
