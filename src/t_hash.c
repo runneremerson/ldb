@@ -184,9 +184,20 @@ int hash_getall(ldb_context_t* context, const ldb_slice_t* name, ldb_list_t** pk
   int retval = 0;
   ldb_hash_iterator_t* iterator = NULL;
   if(hscan(context, name, NULL, NULL, 20000000, 0, &iterator)!=0){
-    retval = LDB_ERR;
+    retval = LDB_OK_RANGE_HAVE_NONE;
     goto end;
   }
+  do{
+    ldb_slice_t *slice_key, *key, *slice_val, *slice_name = NULL;
+    ldb_hash_iterator_key(iterator, &slice_key);
+    if(decode_hash_key(ldb_slice_data(slice_key),
+                       ldb_slice_size(slice_key),
+                       &slice_name,
+                       &key) == 0){
+    }
+
+  }while(!ldb_hash_iterator_next(iterator));
+  
   
   
 
