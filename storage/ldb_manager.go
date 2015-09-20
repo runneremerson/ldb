@@ -13,7 +13,6 @@ import (
 	"reflect"
 	"sync"
 	"unsafe"
-	"yy.com/ramcloud/storage"
 )
 
 // StringPointer returns &s[0], which is not allowed in go

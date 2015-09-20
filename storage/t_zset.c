@@ -631,11 +631,11 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name,
     fprintf(stderr, "empty name or key!");
     return 0;
   }
-  if(ldb_slice_size(name) > LDB_KEY_LEN_MAX){
+  if(ldb_slice_size(name) > LDB_DATA_TYPE_KEY_LEN_MAX){
     fprintf(stderr, "name too long!");
     return -1;
   }
-  if(ldb_slice_size(key) > LDB_KEY_LEN_MAX){
+  if(ldb_slice_size(key) > LDB_DATA_TYPE_KEY_LEN_MAX){
     fprintf(stderr, "key too long!");
     return -1;
   } 
@@ -706,11 +706,11 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name,
 
 static int zdel_one(ldb_context_t *context, const ldb_slice_t* name, 
                     const ldb_slice_t* key, const ldb_meta_t* meta){
-  if(ldb_slice_size(name) > LDB_KEY_LEN_MAX){
+  if(ldb_slice_size(name) > LDB_DATA_TYPE_KEY_LEN_MAX){
     fprintf(stderr, "name too long!");
     return -1;
   }
-  if(ldb_slice_size(key) > LDB_KEY_LEN_MAX){
+  if(ldb_slice_size(key) > LDB_DATA_TYPE_KEY_LEN_MAX){
     fprintf(stderr, "key too long!");
     return -1;
   }
