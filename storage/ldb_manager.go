@@ -23,23 +23,19 @@ func StringPointer(s string) unsafe.Pointer {
 
 type LdbManager struct {
 	inited   bool
-	engid    int
 	readCnt  uint64
 	writeCnt uint64
 	context  *C.ldb_context_t
 	ldbLock  sync.RWMutex
 }
 
-func NewLdbManager(engid int, file_path string, cache_size int, write_buffer_size int) (*LdbManager, error) {
+func NewLdbManager() (*LdbManager, error) {
 	ldbManager := &LdbManager{
 		inited:   false,
-		engid:    engid,
 		readCnt:  0,
 		writeCnt: 0,
-		context:  (*C.ldb_context_t)(storage.CNULL),
+		context:  (*C.ldb_context_t)(CNULL),
 	}
-	log.Infof("LdbManagerKV engid %v cache_size InitDB %v write_buffer_size %v\n", engid, cache_size, write_buffer_size)
-	ldbManager.InitDB(file_path, cache_size, write_buffer_size)
 	return ldbManager, nil
 }
 
@@ -47,12 +43,13 @@ func (manager *LdbManager) InitDB(file_path string, cache_size int, write_buffer
 	manager.ldbLock.Lock()
 	defer manager.ldbLock.Unlock()
 
+	log.Infof("LdbManager cache_size InitDB %v write_buffer_size %v\n", cache_size, write_buffer_size)
 	if manager.inited {
 		return 0
 	}
 
 	manager.context = (*C.ldb_context_t)(C.ldb_context_create(C.CString(file_path), C.size_t(cache_size), C.size_t(write_buffer_size)))
-	if unsafe.Pointer(manager.context) == storage.CNULL {
+	if unsafe.Pointer(manager.context) == CNULL {
 		log.Errorf("leveldb_context_create error")
 		return -1
 	}
