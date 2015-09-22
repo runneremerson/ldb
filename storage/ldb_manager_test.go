@@ -2,14 +2,20 @@ package ldb
 
 import "testing"
 
-func TestLdbOK(t *testing.T) {
-	engine, err := NewLdbManager()
-	if err != nil {
-		t.Fatalf("NewLdbManager error\n")
+var _engine *LdbManager
+var _err error
+
+func GetLdbManager() (*LdbManager, error) {
+	if _engine == nil {
+		_engine, _err = NewLdbManager()
 	}
-	ret := engine.InitDB("/tmp/ldb", 64, 128)
-	if ret != 0 {
-		t.Fatalf("engine InitDB error\n")
+	return _engine, _err
+}
+
+func TestLdbFinalise(t *testing.T) {
+	engine, err := GetLdbManager()
+	if err != nil {
+		t.Fatalf("GetLdbManager error\n")
 	}
 	engine.FinaliseDB()
 }
