@@ -1,4 +1,4 @@
-package ldb
+package storage
 
 import "unsafe"
 
