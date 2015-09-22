@@ -6,12 +6,12 @@ include build_config.mk
 all:
 	chmod u+x "${LEVELDB_PATH}/build_detect_platform"
 	cd "${LEVELDB_PATH}"; ${MAKE}
-	cd storage/; ${MAKE}
+	cd ldb/; ${MAKE}
 	cd test/; ${MAKE}
 
 clean:
 	rm -f *.a  ldb_bench org_bench
-	cd storage/; ${MAKE} clean
+	cd ldb/; ${MAKE} clean
 	cd benchmark/; ${MAKE} clean
 	cd test/; ${MAKE} clean
 
