@@ -11,6 +11,7 @@
 
 #include "t_kv.h"
 #include "t_zset.h"
+#include "t_hash.h"
 
 #include <leveldb-ldb/c.h>
 #include <string.h>
@@ -78,10 +79,9 @@ static int decode_slice_value(const ldb_slice_t* slice_val, value_item_t* item){
   return 0;
 }
 
-static char* malloc_and_copy(const ldb_slice_t* slice_val){
-  size_t size = ldb_slice_size(slice_val);
+static char* malloc_and_copy(const char* data, size_t size){
   char* result = lmalloc(size);
-  memcpy(result, ldb_slice_data(slice_val), size); 
+  memcpy(result, data, size); 
   return result;
 }
 
@@ -125,7 +125,7 @@ int ldb_mset(ldb_context_t* context,
              GoByteSlice* keyvals, 
              GoUint64Slice* versions, 
              int length,
-             GoUint64Slice* retvals,
+             GoUint64Slice* results,
              int en){
   int retval = 0;
   ldb_list_t *datalist, *metalist, *retlist = NULL;
@@ -174,7 +174,7 @@ int ldb_mset(ldb_context_t* context,
     if(node == NULL){
       break;
     }
-    retvals->data[now] = (int)(node->value_);
+    results->data[now] = (int)(node->value_);
     ++now;
   }
   
@@ -216,10 +216,23 @@ int ldb_pttl(ldb_context_t* context,
     return 0;
 }
 
+int ldb_persist(ldb_context_t* context,
+               char* key,
+               size_t keylen,
+               uint64_t version){
+    return 0;
+}
+
+int ldb_exists(ldb_context_t* context,
+               char* key,
+               size_t keylen){
+    return 0;                   
+}
+
 int ldb_get(ldb_context_t* context, 
             char* key, 
             size_t keylen, 
-            value_item_t* item){
+            value_item_t** item){
   int retval = 0;
   ldb_slice_t *slice_key, *slice_val = NULL;
   slice_key = ldb_slice_create(key, keylen);
@@ -227,7 +240,8 @@ int ldb_get(ldb_context_t* context,
   if(retval != LDB_OK){
     goto end;
   }
-  if(decode_slice_value(slice_val, item)){
+  *item = create_value_item_array(1);
+  if(decode_slice_value(slice_val, *item)){
     retval = LDB_ERR;
     goto end;
   }
@@ -245,7 +259,7 @@ int ldb_mget(ldb_context_t* context,
              int length,
              GoByteSliceSlice* items,
              GoUint64Slice* versions,
-             int* number){
+             int* itemnum){
   int retval = 0;
   ldb_list_t *keylist, *vallist, *metalist = NULL;
   keylist = ldb_list_create();
@@ -280,8 +294,10 @@ int ldb_mget(ldb_context_t* context,
       items->data[now].data_len = 0;
       items->data[now].data = NULL;
     }else{
-      items->data[now].data_len = ldb_slice_size((ldb_slice_t*)node_val->data_);
-      items->data[now].data = malloc_and_copy((ldb_slice_t*)node_val->data_);
+      size_t data_len = ldb_slice_size((ldb_slice_t*)node_val->data_)-sizeof(uint64_t);
+      items->data[now].data_len = data_len;
+      char* data = malloc_and_copy(ldb_slice_data((ldb_slice_t*)node_val->data_)+sizeof(uint64_t),  data_len);
+      items->data[now].data = data;
     }
     if( node_met->type_ == LDB_LIST_NODE_TYPE_NONE ){
       versions->data[now] = 0;
@@ -291,6 +307,7 @@ int ldb_mget(ldb_context_t* context,
     items->data[now].cap = items->data[now].data_len;
     ++now;
   }
+  *itemnum = now;
 
 end:
   ldb_list_destroy(keylist);
@@ -335,6 +352,27 @@ int ldb_incrby(ldb_context_t* context,
 end:
   ldb_slice_destroy(slice_key);
   return retval;
+}
+
+int ldb_hgetall(ldb_context_t* context,
+                char* name,
+                size_t namelen,
+                value_item_t** items,
+                size_t* itemnum){
+    int retval = 0;
+    ldb_slice_t *slice_name = ldb_slice_create(name, namelen);
+    ldb_list_t *keys, *vals, *mets = NULL;
+    retval = hash_getall(context, slice_name, &keys, &vals, &mets);
+    if( retval != LDB_OK ){
+        goto end;
+    }
+    //TODO
+
+end:
+    ldb_slice_destroy(slice_name);
+    ldb_list_destroy(keys);
+    ldb_list_destroy(vals);
+    return retval;
 }
 
 int ldb_zscore(ldb_context_t* context,
@@ -401,8 +439,9 @@ int ldb_zrange_by_rank(ldb_context_t* context,
       break;
     }
     if(node_key->type_ == LDB_LIST_NODE_TYPE_SLICE){
-      (*items)[now].data_ = malloc_and_copy((ldb_slice_t*)(node_key->data_));
-      (*items)[now].data_len_ = ldb_slice_size((ldb_slice_t*)(node_key->data_));
+      size_t data_len = ldb_slice_size((ldb_slice_t*)(node_key->data_));
+      (*items)[now].data_len_ = data_len;
+      (*items)[now].data_ = malloc_and_copy(ldb_slice_data((ldb_slice_t*)(node_key->data_)), data_len);
       if(withscore){
         (*scores)[now] = node_key->value_;
       }
@@ -467,8 +506,9 @@ int ldb_zrange_by_score(ldb_context_t* context,
       break;
     }
     if(node_key->type_ == LDB_LIST_NODE_TYPE_SLICE){
-      (*items)[now].data_ = malloc_and_copy((ldb_slice_t*)(node_key->data_));
-      (*items)[now].data_len_ = ldb_slice_size((ldb_slice_t*)(node_key->data_));
+      size_t data_len = ldb_slice_size((ldb_slice_t*)(node_key->data_));
+      (*items)[now].data_len_ = data_len;
+      (*items)[now].data_ = malloc_and_copy(ldb_slice_data((ldb_slice_t*)(node_key->data_)), data_len);
       if(withscore){
         (*scores)[now] = node_key->value_;
       }

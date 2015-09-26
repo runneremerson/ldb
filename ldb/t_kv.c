@@ -343,13 +343,13 @@ int string_mget(ldb_context_t* context, const ldb_list_t* keylist, ldb_list_t** 
       retval = LDB_OK;
       break;
     }
-    ldb_slice_t *slice_val = NULL;
+    ldb_slice_t *val = NULL;
     ldb_list_node_t *node_val = ldb_list_node_create();
     ldb_list_node_t *node_meta = ldb_list_node_create();
-    if(string_get(context, (ldb_slice_t*)node_key->data_, &slice_val)== LDB_OK){
-      node_val->data_ = ldb_slice_create(ldb_slice_data(slice_val)+sizeof(uint64_t), ldb_slice_size(slice_val)-sizeof(uint64_t));
+    if(string_get(context, (ldb_slice_t*)node_key->data_, &val)== LDB_OK){
+      node_val->data_ = val;
       node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
-      node_meta->value_ = leveldb_decode_fixed64(ldb_slice_data(slice_val));
+      node_meta->value_ = leveldb_decode_fixed64(ldb_slice_data(val));
       node_meta->type_ = LDB_LIST_NODE_TYPE_BASE;
     }else{
       node_val->type_ = LDB_LIST_NODE_TYPE_NONE;

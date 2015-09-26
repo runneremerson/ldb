@@ -45,7 +45,7 @@ int ldb_mset(ldb_context_t* context,
              GoByteSlice* keyvals, 
              GoUint64Slice* versions, 
              int length,
-             GoUint64Slice* retvals,
+             GoUint64Slice* results,
              int en);
 int ldb_expire(ldb_context_t* context,
               char* key,
@@ -67,17 +67,26 @@ int ldb_pttl(ldb_context_t* context,
             size_t keylen,
             long* remain);
 
+int ldb_persist(ldb_context_t* context,
+               char* key,
+               size_t keylen,
+               uint64_t version);
+
+int ldb_exists(ldb_context_t* context,
+              char* key,
+              size_t keylen);
+
 int ldb_get(ldb_context_t* context, 
             char* key, 
             size_t keylen, 
-            value_item_t* item);
+            value_item_t** item);
 
 int ldb_mget(ldb_context_t* context,
              GoByteSlice* slice,
              int length,
              GoByteSliceSlice* items,
              GoUint64Slice* versions,
-             int* number);
+             int* itemnum);
 
 int ldb_del(ldb_context_t* context, 
             char* key, 
@@ -96,8 +105,92 @@ int ldb_incrby(ldb_context_t* context,
                int64_t by,
                int64_t* reault);
 
-
 //hash
+int ldb_hgetall(ldb_context_t* context,
+                char* name,
+                size_t namelen,
+                value_item_t** items,
+                size_t* itemnum);
+
+int ldb_hkeys(ldb_context_t* context,
+              char* key,
+              size_t keylen,
+              value_item_t** items,
+              size_t* itemnum);
+
+int ldb_hvals(ldb_context_t* context,
+              char* key,
+              size_t keylen,
+              value_item_t** items,
+              size_t* itemnum);
+
+int ldb_hget(ldb_context_t* context,
+             GoByteSlice* key,
+             GoByteSlice* field,
+             value_item_t** item);
+
+int ldb_hmget(ldb_context_t* context,
+              char* key,
+              size_t keylen,
+              value_item_t* fields,
+              size_t fieldnum,
+              value_item_t** items,
+              size_t* itemnum);
+
+int ldb_hincrby(ldb_context_t* context,
+                char* key,
+                size_t keylen,
+                uint64_t lastver,
+                int vercare,
+                long exptime,
+                value_item_t* item,
+                long long by,
+                long long* result);
+
+int ldb_hset(ldb_context_t* context,
+             char* key,
+             size_t keylen,
+             uint64_t lastver,
+             int vercare,
+             long exptime,
+             char* field,
+             size_t fieldlen,
+             value_item_t* item);
+
+int ldb_hmset(ldb_context_t* context,
+              char* key,
+              size_t keylen,
+              uint64_t lastver,
+              int vercare,
+              long exptime,
+              value_item_t* items,
+              size_t itemnum,
+              int** results);
+
+int ldb_hdel(ldb_context_t* context,
+             char* key,
+             size_t keylen,
+             uint64_t lastver,
+             int vercare,
+             long exptime,
+             value_item_t* items,
+             size_t itemnum,
+             int** results);
+
+int ldb_hlen(ldb_context_t* context,
+             char* key,
+             size_t keylen,
+             long long* length);
+
+int ldb_hexists(ldb_context_t* context,
+                char* key,
+                size_t keylen,
+                char* field,
+                size_t fieldlen);
+
+
+
+
 
 //zset
 int ldb_zscore(ldb_context_t* context,

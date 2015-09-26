@@ -12,6 +12,7 @@ struct ldb_context_t{
     leveldb_filterpolicy_t*     filtter_policy_;
     leveldb_cache_t*            block_cache_;
     leveldb_writebatch_t*       batch_;
+    leveldb_mutex_t*            mutex_; //protect batch_
 };
 
 typedef struct ldb_context_t    ldb_context_t;

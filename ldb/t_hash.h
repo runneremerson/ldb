@@ -28,9 +28,9 @@ int hash_keys(ldb_context_t* context, const ldb_slice_t* name, ldb_list_t **plis
 
 int hash_vals(ldb_context_t* context, const ldb_slice_t* name, ldb_list_t** pvallist, ldb_list_t** pmetalist);
 
-int hash_set(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta);
+int hash_set(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta);
 
-int hash_setnx(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta);
+int hash_setnx(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta);
 
 int hash_mset(ldb_context_t* context, const ldb_slice_t* name, const ldb_list_t* datalist, const ldb_list_t* metalist, ldb_list_t** plist);
 

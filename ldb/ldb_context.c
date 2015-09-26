@@ -22,6 +22,7 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
     context->block_cache_ = leveldb_cache_create_lru(cache_size*1024*1024);
     leveldb_options_set_cache(context->options_, context->block_cache_);
     context->batch_ = leveldb_writebatch_create();
+    context->mutex_ = leveldb_mutex_create();
     leveldb_options_set_block_size(context->options_, 32*1024);
     leveldb_options_set_write_buffer_size(context->options_, write_buffer_size*1024*1024);
     leveldb_options_set_compression(context->options_, leveldb_snappy_compression);
@@ -48,6 +49,9 @@ err:
     if(context->batch_!=NULL){
         leveldb_writebatch_destroy(context->batch_);
     }
+    if(context->mutex_!=NULL){
+        leveldb_mutex_destroy(context->mutex_);
+    }
     lfree(context);
     return NULL;
 }
@@ -59,20 +63,30 @@ void ldb_context_destroy( ldb_context_t* context){
         leveldb_filterpolicy_destroy(context->filtter_policy_);
         leveldb_cache_destroy(context->block_cache_);
         leveldb_writebatch_destroy(context->batch_);
+        leveldb_mutex_destroy(context->mutex_);
     }
     lfree(context);
 }
 
 void ldb_context_writebatch_commit(ldb_context_t* context, char** errptr){
     leveldb_writeoptions_t *writeoptions = leveldb_writeoptions_create();
+
+    leveldb_mutex_lock(context->mutex_);
     leveldb_write(context->database_, writeoptions, context->batch_, errptr);
+    leveldb_writebatch_clear(context->batch_);
+    leveldb_mutex_unlock(context->mutex_);
+
     leveldb_writeoptions_destroy(writeoptions);
 }
 
 void ldb_context_writebatch_put(ldb_context_t* context, const char* key, size_t klen, const char* val, size_t vlen){
+    leveldb_mutex_lock(context->mutex_);
     leveldb_writebatch_put(context->batch_, key, klen, val, vlen);
+    leveldb_mutex_unlock(context->mutex_);
 }
 
 void ldb_context_writebatch_delete(ldb_context_t* context, const char* key, size_t klen){
+    leveldb_mutex_lock(context->mutex_);
     leveldb_writebatch_delete(context->batch_, key, klen);
+    leveldb_mutex_unlock(context->mutex_);
 }
