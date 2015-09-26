@@ -109,10 +109,6 @@ clean:
 	-rm -f $(PROGRAMS) $(BENCHMARKS) $(LIBRARY) $(SHARED) $(MEMENVLIBRARY) */*.o */*/*.o ios-x86/*/*.o ios-arm/*/*.o build_config.mk
 	-rm -rf ios-x86/* ios-arm/*
 
-install:
-	mkdir -p $(PREFIX)/include/leveldb-ldb
-	cp -rdpf ./include/leveldb/*    $(PREFIX)/include/leveldb-ldb
-	cp -dpf  ./libleveldb-ldb.*     $(PREFIX)/lib/
 
 $(LIBRARY): $(LIBOBJECTS)
 	rm -f $@
