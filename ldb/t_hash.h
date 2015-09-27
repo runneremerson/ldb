@@ -18,7 +18,7 @@ int decode_hash_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t **pslice_n
 
 
 
-int hash_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, ldb_slice_t** pslice);
+int hash_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, ldb_slice_t** pslice, ldb_meta_t** pmeta);
 
 int hash_mget(ldb_context_t* context, const ldb_slice_t* name, const ldb_list_t* keylist, ldb_list_t** pvallist, ldb_list_t** pmetalist);
 
@@ -39,6 +39,8 @@ int hash_exists(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice
 int hash_length(ldb_context_t* context, const ldb_slice_t* name, uint64_t* length);
 
 int hash_incr(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta,  int64_t by, int64_t* val);
+
+int hash_del(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta);
 
 
 

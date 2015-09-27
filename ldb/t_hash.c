@@ -110,7 +110,7 @@ end:
   return retval;
 }
 
-int hash_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, ldb_slice_t** pslice){
+int hash_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, ldb_slice_t** pslice, ldb_meta_t** pmeta){
   int retval = 0;
   char *val, *errptr = NULL;
   size_t vallen = 0;
@@ -133,7 +133,9 @@ int hash_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t*
     }else{
       uint8_t type = leveldb_decode_fixed8(val);
       if(type == LDB_VALUE_TYPE_VAL){
-        *pslice = ldb_slice_create(val + LDB_VAL_TYPE_SIZE, vallen - LDB_VAL_TYPE_SIZE);
+        *pslice = ldb_slice_create(val + LDB_VAL_META_SIZE, vallen - LDB_VAL_META_SIZE);
+        uint64_t version = leveldb_decode_fixed64(val + LDB_VAL_TYPE_SIZE);
+        *pmeta = ldb_meta_create(0, 0, version);
         retval = LDB_OK;
       }else{
         retval = LDB_OK_NOT_EXIST;
@@ -160,17 +162,19 @@ int hash_mget(ldb_context_t* context, const ldb_slice_t* name, const ldb_list_t*
       break;
     }
     ldb_slice_t *val = NULL;
+    ldb_meta_t *meta = NULL;
     ldb_list_node_t *node_val = ldb_list_node_create();
     ldb_list_node_t *node_meta = ldb_list_node_create();
-    if(hash_get(context, name, (ldb_slice_t*)node_key->data_, &val)== LDB_OK){
+    if(hash_get(context, name, (ldb_slice_t*)node_key->data_, &val, &meta)== LDB_OK){
       node_val->data_ = val;
       node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
-      node_meta->value_ = leveldb_decode_fixed64(ldb_slice_data(val));
+      node_meta->value_ = ldb_meta_nextver(meta);
       node_meta->type_ = LDB_LIST_NODE_TYPE_BASE;
     }else{
       node_val->type_ = LDB_LIST_NODE_TYPE_NONE;
       node_meta->type_ = LDB_LIST_NODE_TYPE_NONE;
     }
+    ldb_meta_destroy(meta);
     rpush_ldb_list_node(*pvallist, node_val);
     rpush_ldb_list_node(*pmetalist, node_meta);
   }
@@ -197,7 +201,8 @@ int hash_getall(ldb_context_t* context, const ldb_slice_t* name, ldb_list_t** pk
                        ldb_slice_size(slice_key),
                        &slice_name,
                        &key) == 0){
-      if(hash_get(context, name, key, &val) == LDB_OK){
+      ldb_meta_t* meta = NULL;
+      if(hash_get(context, name, key, &val, &meta) == LDB_OK){
         ldb_list_node_t *node_key = ldb_list_node_create();
         ldb_list_node_t *node_val = ldb_list_node_create();
         ldb_list_node_t *node_meta = ldb_list_node_create();
@@ -205,13 +210,14 @@ int hash_getall(ldb_context_t* context, const ldb_slice_t* name, ldb_list_t** pk
         node_key->type_ = LDB_LIST_NODE_TYPE_SLICE;
         node_val->data_ = val;
         node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
-        node_meta->value_ = leveldb_decode_fixed64(ldb_slice_data(val));
+        node_meta->value_ = ldb_meta_nextver(meta);
         node_meta->type_ = LDB_LIST_NODE_TYPE_BASE;
         
         rpush_ldb_list_node(*pkeylist, node_key);
         rpush_ldb_list_node(*pvallist, node_val);
         rpush_ldb_list_node(*pmetalist, node_meta);
       }  
+      ldb_meta_destroy(meta);
     }
     ldb_slice_destroy(slice_key);
   }while(!ldb_hash_iterator_next(iterator));
@@ -268,17 +274,19 @@ int hash_vals(ldb_context_t* context, const ldb_slice_t* name, ldb_list_t** pval
                        ldb_slice_size(slice_key),
                        &slice_name,
                        &key) == 0){
-      if(hash_get(context, name, key, &val) == LDB_OK){
+      ldb_meta_t* meta = NULL;
+      if(hash_get(context, name, key, &val, &meta) == LDB_OK){
         ldb_list_node_t *node_val = ldb_list_node_create();
         ldb_list_node_t *node_meta = ldb_list_node_create();
         node_val->data_ = val;
         node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
-        node_meta->value_ = leveldb_decode_fixed64(ldb_slice_data(val));
+        node_meta->value_ = ldb_meta_nextver(meta);
         node_meta->type_ = LDB_LIST_NODE_TYPE_BASE;
         
         rpush_ldb_list_node(*pvallist, node_val);
         rpush_ldb_list_node(*pmetalist, node_meta);
       }  
+      ldb_meta_destroy(meta);
     }
     ldb_slice_destroy(slice_key);
   }while(!ldb_hash_iterator_next(iterator));
@@ -380,9 +388,11 @@ end:
 
 int hash_exists(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key){ 
   ldb_slice_t* slice_val = NULL;
-  int retval = hash_get(context, name, key, &slice_val); 
+  ldb_meta_t* meta = NULL;
+  int retval = hash_get(context, name, key, &slice_val, &meta); 
 
   ldb_slice_destroy(slice_val);
+  ldb_meta_destroy(meta);
   return retval;
 }
 
@@ -430,10 +440,11 @@ end:
 int hash_incr(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t by, int64_t* val){
   int retval = 0;
   ldb_slice_t *slice_old_val, *slice_new_val= NULL;
+  ldb_meta_t *old_meta = NULL;
   int64_t old_val = 0;
-  int ret = hash_get(context, name, key, &slice_old_val);
+  int ret = hash_get(context, name, key, &slice_old_val, &old_meta);
   if(ret == LDB_OK){
-    old_val = leveldb_decode_fixed64(ldb_slice_data(slice_old_val) + sizeof(uint64_t));
+    old_val = leveldb_decode_fixed64(ldb_slice_data(slice_old_val));
     old_val += by;
   }else if(ret == LDB_OK_NOT_EXIST){
     old_val = by;
@@ -469,7 +480,37 @@ int hash_incr(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t
 end:
   ldb_slice_destroy(slice_old_val);
   ldb_slice_destroy(slice_new_val);
+  ldb_meta_destroy(old_meta);
   return retval;
+}
+
+
+int hash_del(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta){
+    int retval, ret = 0;
+    ret = hdel_one(context, name, key, meta);
+    if(ret >=0){
+        if(ret > 0){
+            if(hash_incr_size(context, name, -1) < 0){
+                retval = LDB_ERR;
+                goto end;
+            }
+            char *errptr = NULL;
+            ldb_context_writebatch_commit(context, &errptr);
+            if(errptr != NULL){
+                fprintf(stderr, "leveldb_write fail %s.\n", errptr);
+                leveldb_free(errptr);
+                retval = LDB_ERR;
+                goto  end;
+            }
+            retval = LDB_OK;
+        }
+        retval = LDB_OK_NOT_EXIST;
+    }else{
+        retval = LDB_ERR;
+    }
+
+end:
+    return retval;
 }
 
 
@@ -490,7 +531,8 @@ static int hset_one(ldb_context_t* context, const ldb_slice_t* name,
   }
   int retval = 0;
   ldb_slice_t *slice_key,  *slice_val = NULL;
-  if(hash_get(context, name, key, &slice_val) == LDB_OK_NOT_EXIST){
+  ldb_meta_t *old_meta = NULL;
+  if(hash_get(context, name, key, &slice_val, &old_meta) == LDB_OK_NOT_EXIST){
     encode_hash_key(ldb_slice_data(name),
                     ldb_slice_size(name),
                     ldb_slice_data(key),
@@ -505,25 +547,20 @@ static int hset_one(ldb_context_t* context, const ldb_slice_t* name,
                                ldb_slice_size(value));
     return 1;
   }else{
-      if(compare_with_length(ldb_slice_data(slice_val),
-                             ldb_slice_size(slice_val),
-                             ldb_slice_data(value),
-                             ldb_slice_size(value)) != 0){
-        encode_hash_key(ldb_slice_data(name),
-                        ldb_slice_size(name),
-                        ldb_slice_data(key),
-                        ldb_slice_size(key),
-                        meta,
-                        &slice_key);
+    encode_hash_key(ldb_slice_data(name),
+                    ldb_slice_size(name),
+                    ldb_slice_data(key),
+                    ldb_slice_size(key),
+                    meta,
+                    &slice_key);
 
-        ldb_context_writebatch_put(context,
-                                   ldb_slice_data(slice_key),
-                                   ldb_slice_size(slice_key),
-                                   ldb_slice_data(value),
-                                   ldb_slice_size(value));
-       
-      }
-      return 0;
+    ldb_context_writebatch_put(context,
+                               ldb_slice_data(slice_key),
+                               ldb_slice_size(slice_key),
+                               ldb_slice_data(value),
+                               ldb_slice_size(value)); 
+
+    return 0;
   }
   return retval;
 }
@@ -542,7 +579,8 @@ static int hdel_one(ldb_context_t* context, const ldb_slice_t* name,
   }
 
   ldb_slice_t *slice_val = NULL;
-  if(hash_get(context, name, key, &slice_val) == LDB_OK_NOT_EXIST){
+  ldb_meta_t *old_meta = NULL;
+  if(hash_get(context, name, key, &slice_val, &old_meta) == LDB_OK_NOT_EXIST){
     return 0;
   }
 

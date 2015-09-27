@@ -87,7 +87,8 @@ int string_setnx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
   }
   //get
   ldb_slice_t *slice_value = NULL;
-  int found = string_get(context, key, &slice_value);
+  ldb_meta_t *old_meta = NULL;
+  int found = string_get(context, key, &slice_value, &old_meta);
   if(found == LDB_OK){
     retval = LDB_OK_BUT_ALREADY_EXIST;
     goto end;
@@ -115,6 +116,8 @@ int string_setnx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
   retval = LDB_OK; 
 
 end:
+  ldb_slice_destroy(slice_value);
+  ldb_meta_destroy(old_meta);
   return retval;
 }
 
@@ -127,7 +130,8 @@ int string_setxx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
   }
   //get
   ldb_slice_t *slice_value = NULL;
-  int found = string_get(context, key, &slice_value);
+  ldb_meta_t *old_meta = NULL;
+  int found = string_get(context, key, &slice_value, &old_meta);
   if(found != LDB_OK){
     retval = LDB_OK_NOT_EXIST;
     goto end;
@@ -154,6 +158,8 @@ int string_setxx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
   }
   retval = LDB_OK; 
 end:
+  ldb_slice_destroy(slice_value);
+  ldb_meta_destroy(old_meta);
   return retval;
 }
 
@@ -242,13 +248,15 @@ int string_msetnx(ldb_context_t* context, const ldb_list_t* datalist, const ldb_
 
     //check get result
     ldb_slice_t *slice_value = NULL;
-    int found = string_get(context, key, &slice_value);
+    ldb_meta_t *old_meta = NULL;
+    int found = string_get(context, key, &slice_value, &old_meta);
     if(found == LDB_OK){
       ldb_list_node_t* node = ldb_list_node_create();
       node->type_ = LDB_LIST_NODE_TYPE_BASE;
       node->value_ = LDB_OK_BUT_ALREADY_EXIST;
       rpush_ldb_list_node(retlist, node); 
       ldb_slice_destroy(slice_value);
+      ldb_meta_destroy(old_meta);
       continue;
     }
 
@@ -297,7 +305,7 @@ end:
   return retval;
 }
 
-int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pvalue){
+int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pvalue, ldb_meta_t** pmeta){
   char *val, *errptr = NULL;
   size_t vallen = 0;
   leveldb_readoptions_t* readoptions = leveldb_readoptions_create();
@@ -317,7 +325,9 @@ int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pva
     assert(vallen>= LDB_VAL_META_SIZE);
     uint8_t type = leveldb_decode_fixed8(val);
     if(type == LDB_VALUE_TYPE_VAL){
-      *pvalue = ldb_slice_create(val+LDB_VAL_TYPE_SIZE, vallen-LDB_VAL_TYPE_SIZE);
+      *pvalue = ldb_slice_create(val+LDB_VAL_META_SIZE, vallen-LDB_VAL_META_SIZE);
+      uint64_t version = leveldb_decode_fixed64(val + LDB_VAL_TYPE_SIZE);
+      *pmeta = ldb_meta_create(0, 0, version); 
       retval = LDB_OK;
     }else{
       retval = LDB_OK_NOT_EXIST;
@@ -344,17 +354,20 @@ int string_mget(ldb_context_t* context, const ldb_list_t* keylist, ldb_list_t** 
       break;
     }
     ldb_slice_t *val = NULL;
+    ldb_meta_t *meta = NULL;
     ldb_list_node_t *node_val = ldb_list_node_create();
     ldb_list_node_t *node_meta = ldb_list_node_create();
-    if(string_get(context, (ldb_slice_t*)node_key->data_, &val)== LDB_OK){
+    if(string_get(context, (ldb_slice_t*)node_key->data_, &val, &meta)== LDB_OK){
       node_val->data_ = val;
       node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
-      node_meta->value_ = leveldb_decode_fixed64(ldb_slice_data(val));
+      node_meta->value_ = ldb_meta_nextver(meta);
       node_meta->type_ = LDB_LIST_NODE_TYPE_BASE;
     }else{
       node_val->type_ = LDB_LIST_NODE_TYPE_NONE;
       node_meta->type_ = LDB_LIST_NODE_TYPE_NONE;
     }
+    ldb_slice_destroy(val);
+    ldb_meta_destroy(meta);
     rpush_ldb_list_node(*pvallist, node_val);
     rpush_ldb_list_node(*pmetalist, node_meta);
   }
@@ -398,9 +411,10 @@ end:
 int string_incr(ldb_context_t* context, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t init, int64_t by, int64_t* val){
   int retval = 0;
   ldb_slice_t *slice_value = NULL;
-  int found = string_get(context, key, &slice_value);
+  ldb_meta_t *old_meta = NULL;
+  int found = string_get(context, key, &slice_value, &old_meta);
   if(found == LDB_OK){
-    *val = leveldb_decode_fixed64(ldb_slice_data(slice_value)+sizeof(uint64_t));
+    *val = leveldb_decode_fixed64(ldb_slice_data(slice_value));
   }else if(found == LDB_OK_NOT_EXIST){
     *val = init;
   }else{

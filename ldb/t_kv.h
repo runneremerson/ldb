@@ -18,7 +18,7 @@ int string_mset(ldb_context_t* context, const ldb_list_t* datalist, const ldb_li
 
 int string_msetnx(ldb_context_t* context, const ldb_list_t* datalist, const ldb_list_t* metalist, ldb_list_t** plist); 
 
-int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pvalue);
+int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pvalue, ldb_meta_t** meta);
 
 int string_mget(ldb_context_t* context, const ldb_list_t* keylist, ldb_list_t** pvallist, ldb_list_t** pmetalist);
 
