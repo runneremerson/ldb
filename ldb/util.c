@@ -1,5 +1,7 @@
 #include "util.h"
 
+#include <time.h>
+#include <sys/time.h>
 #include <string.h>
 
 
@@ -12,4 +14,10 @@ int compare_with_length(const void* s1, size_t l1, const void* s2, size_t l2){
         else if(l1 > l2) r = +1;
     }
     return r;
+}
+
+uint64_t time_ms(){
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    return now.tv_sec*1000 + now.tv_usec/1000;
 }

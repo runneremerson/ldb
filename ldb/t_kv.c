@@ -5,6 +5,7 @@
 #include "ldb_bytes.h"
 #include "ldb_list.h"
 #include "t_kv.h"
+#include "util.h"
 
 #include <leveldb-ldb/c.h>
 #include <string.h>
@@ -324,20 +325,30 @@ int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pva
   if(val != NULL){
     assert(vallen>= LDB_VAL_META_SIZE);
     uint8_t type = leveldb_decode_fixed8(val);
-    if(type == LDB_VALUE_TYPE_VAL){
-      *pvalue = ldb_slice_create(val+LDB_VAL_META_SIZE, vallen-LDB_VAL_META_SIZE);
+    if(type & LDB_VALUE_TYPE_VAL){
       uint64_t version = leveldb_decode_fixed64(val + LDB_VAL_TYPE_SIZE);
-      *pmeta = ldb_meta_create(0, 0, version); 
+      uint64_t exptime = 0;
+      if(type & LDB_VALUE_TYPE_EXP){
+        exptime = leveldb_decode_fixed64(val + LDB_VAL_META_SIZE);   
+          if(time_ms() >= exptime){
+              retval = LDB_OK_NOT_EXIST;
+              goto end;
+          }
+      }
+      *pvalue = ldb_slice_create(val+LDB_VAL_META_SIZE, vallen-LDB_VAL_META_SIZE);
+      *pmeta = ldb_meta_create_with_exp(0, 0, version, exptime); 
       retval = LDB_OK;
     }else{
       retval = LDB_OK_NOT_EXIST;
     }
-    leveldb_free(val);
   }else{
     retval = LDB_OK_NOT_EXIST;
   }
 
 end:
+  if(val != NULL){
+    leveldb_free(val);
+  }
   return retval;
 }
 
@@ -360,8 +371,8 @@ int string_mget(ldb_context_t* context, const ldb_list_t* keylist, ldb_list_t** 
     if(string_get(context, (ldb_slice_t*)node_key->data_, &val, &meta)== LDB_OK){
       node_val->data_ = val;
       node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
-      node_meta->value_ = ldb_meta_nextver(meta);
-      node_meta->type_ = LDB_LIST_NODE_TYPE_BASE;
+      node_meta->data_ = meta;
+      node_meta->type_ = LDB_LIST_NODE_TYPE_META;
     }else{
       node_val->type_ = LDB_LIST_NODE_TYPE_NONE;
       node_meta->type_ = LDB_LIST_NODE_TYPE_NONE;

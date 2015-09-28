@@ -1,6 +1,7 @@
 #ifndef LDB_CONTEXT_H
 #define LDB_CONTEXT_H
 
+
 #include <leveldb-ldb/c.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -13,6 +14,7 @@ struct ldb_context_t{
     leveldb_cache_t*            block_cache_;
     leveldb_writebatch_t*       batch_;
     leveldb_mutex_t*            mutex_; //protect batch_
+    void*                       expiring_name_;
 };
 
 typedef struct ldb_context_t    ldb_context_t;

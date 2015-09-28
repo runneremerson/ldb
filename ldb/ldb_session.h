@@ -35,37 +35,40 @@ int ldb_set(ldb_context_t* context,
             size_t keylen, 
             uint64_t lastver, 
             int vercare, 
-            long exptime, 
+            uint64_t exptime, 
             value_item_t* item, 
             int en);
 int ldb_mset(ldb_context_t* context, 
              uint64_t lastver, 
              int vercare, 
-             long exptime, 
+             uint64_t exptime, 
              GoByteSlice* keyvals, 
              GoUint64Slice* versions, 
              size_t length,
              GoUint64Slice* results,
              int en);
+
 int ldb_expire(ldb_context_t* context,
               char* key,
               size_t keylen,
-              long exptime,
-              uint64_t expversion);
+              uint64_t exptime,
+              uint64_t version);
+
 int ldb_pexpire(ldb_context_t* context,
                char* key,
                size_t keylen,
-               long exptime,
-               uint64_t expversion); 
+               uint64_t exptime,
+               uint64_t version); 
+
 int ldb_ttl(ldb_context_t* context,
            char* key,
            size_t keylen,
-           long* remain);
+           uint64_t* remain);
 
 int ldb_pttl(ldb_context_t* context,
             char* key,
             size_t keylen,
-            long* remain);
+            uint64_t* remain);
 
 int ldb_persist(ldb_context_t* context,
                char* key,

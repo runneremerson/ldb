@@ -1,4 +1,5 @@
 #include "ldb_context.h"
+#include "ldb_slice.h"
 #include "lmalloc.h"
 
 #include <leveldb-ldb/c.h>
@@ -8,6 +9,7 @@
 #include <string.h>
 
 
+#define EXPIRATION_LIST_KV "\xff\xff\xff\xff\xff|EXPIRATION_LIST|KV"
 
 
 
@@ -27,6 +29,8 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
     leveldb_options_set_write_buffer_size(context->options_, write_buffer_size*1024*1024);
     leveldb_options_set_compression(context->options_, leveldb_snappy_compression);
     leveldb_options_set_compaction_speed(context->options_, 1000);
+    ldb_slice_t *expiring_name = ldb_slice_create(EXPIRATION_LIST_KV, strlen(EXPIRATION_LIST_KV));
+    context->expiring_name_ = expiring_name;
     char* leveldb_error = NULL;
     context->database_ = leveldb_open(context->options_, name, &leveldb_error); 
     if(leveldb_error!=NULL){
@@ -52,6 +56,9 @@ err:
     if(context->mutex_!=NULL){
         leveldb_mutex_destroy(context->mutex_);
     }
+    if(context->expiring_name_ !=NULL){
+        ldb_slice_destroy((ldb_slice_t*)(context->expiring_name_));
+    }
     lfree(context);
     return NULL;
 }
@@ -64,6 +71,7 @@ void ldb_context_destroy( ldb_context_t* context){
         leveldb_cache_destroy(context->block_cache_);
         leveldb_writebatch_destroy(context->batch_);
         leveldb_mutex_destroy(context->mutex_);
+        ldb_slice_destroy((ldb_slice_t*)(context->expiring_name_));
     }
     lfree(context);
 }

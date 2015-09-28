@@ -10,6 +10,7 @@
 typedef struct ldb_meta_t  ldb_meta_t;
 
 ldb_meta_t* ldb_meta_create(uint32_t vercare, uint64_t lastver, uint64_t nextver);
+ldb_meta_t* ldb_meta_create_with_exp(uint32_t vercare, uint64_t lastver, uint64_t nextver, uint64_t exptime);
 
 void ldb_meta_destroy(ldb_meta_t* meta);
 
@@ -19,7 +20,11 @@ uint64_t ldb_meta_lastver(const ldb_meta_t* meta);
 
 uint64_t ldb_meta_nextver(const ldb_meta_t* meta);
 
+uint64_t ldb_meta_exptime(const ldb_meta_t* meta);
+
 void ldb_meta_encode(char* buf, uint32_t vercare, uint64_t lastver, uint64_t nextver);
+
+void ldb_meta_encode_with_exp(char* buf, uint32_t vercare, uint64_t lastver, uint64_t nextver, uint64_t exptime);
 
 
 ldb_slice_t* ldb_meta_slice_create(const ldb_meta_t* meta);

@@ -52,37 +52,19 @@ func FreeValueItems(valueItems *C.value_item_t, size C.size_t) {
 	}
 }
 
-func GetRevisedExpireTime(version StorageVersionType, expiretime uint32, unit int) uint32 {
+func GetRevisedExpireTime(ttl uint32, unit int) uint64 {
 	// revise expiretime
 	// ms
-	oldTime := int64(version>>8) / 1000
-	// ms
-	nowTime := int64(time.Now().UnixNano()/1000) / 1000
-	diff := nowTime - oldTime
+	nowTime := uint64(time.Now().UnixNano()/1000) / 1000
 	// covert to ms
-	t := int64(expiretime)
+	t := uint64(ttl)
 	if unit == 0 {
 		//0: ex, s
 		//1: px, ms
 		t *= 1000
 	}
 
-	if log.V(2) {
-		log.Infof("unit %v time %v diff %v", unit, expiretime, diff)
-	}
-
-	if t-diff > 0 {
-		if unit == 0 {
-			// millonseconds
-			expiretime = uint32(t - diff)
-		} else {
-			// millionseconds
-			expiretime = uint32(t - diff)
-		}
-	} else {
-		expiretime = 1
-	}
-	return expiretime
+	return uint64(nowTime + t)
 }
 
 type LdbManager struct {
@@ -211,11 +193,11 @@ func (manager *LdbManager) Expire(key string, seconds uint32, version StorageVer
 	csKey := C.CString(key)
 	defer C.free(unsafe.Pointer(csKey))
 
-	seconds = GetRevisedExpireTime(version, seconds, 0)
+	expiretime := GetRevisedExpireTime(seconds, 0)
 
 	log.Infof("Expire key %v seconds %v", key, seconds)
 
-	cExpireTime := C.long(seconds)
+	cExpireTime := C.uint64_t(expiretime)
 	cVersion := C.uint64_t(version)
 
 	ret := C.ldb_expire(manager.context, csKey, C.size_t(len(key)), cExpireTime, cVersion)
@@ -232,9 +214,9 @@ func (manager *LdbManager) PExpire(key string, seconds uint32, version StorageVe
 	csKey := C.CString(key)
 	defer C.free(unsafe.Pointer(csKey))
 
-	seconds = GetRevisedExpireTime(version, seconds, 1)
+	expiretime := GetRevisedExpireTime(seconds, 1)
 
-	cExpireTime := C.long(seconds)
+	cExpireTime := C.uint64_t(expiretime)
 	cVersion := C.uint64_t(version)
 
 	ret := C.ldb_pexpire(manager.context, csKey, C.size_t(len(key)), cExpireTime, cVersion)
@@ -281,7 +263,7 @@ func (manager *LdbManager) Ttl(key string, remain *uint32) int {
 	csKey := C.CString(key)
 	defer C.free(unsafe.Pointer(csKey))
 
-	cRemain := C.long(0)
+	cRemain := C.uint64_t(0)
 
 	ret := C.ldb_ttl(manager.context, csKey, C.size_t(len(key)), &cRemain)
 	iRet := int(ret)
@@ -299,7 +281,7 @@ func (manager *LdbManager) PTtl(key string, remain *uint32) int {
 	csKey := C.CString(key)
 	defer C.free(unsafe.Pointer(csKey))
 
-	cRemain := C.long(0)
+	cRemain := C.uint64_t(0)
 
 	ret := C.ldb_pttl(manager.context, csKey, C.size_t(len(key)), &cRemain)
 	iRet := int(ret)
@@ -333,13 +315,13 @@ func (manager *LdbManager) Set(key string, value StorageValueData, meta StorageM
 		C.size_t(len(key)),
 		C.uint64_t(meta.Lastversion),
 		C.int(meta.Versioncare),
-		C.long(meta.Expiretime),
+		C.uint64_t(meta.Expiretime),
 		valueItem,
 		cEn)
 	return int(ret)
 }
 
-func (manager *LdbManager) SetEx(key string, value StorageValueData, expiretime uint32) int {
+func (manager *LdbManager) SetEx(key string, value StorageValueData, ttl uint32) int {
 	id := getLockID(key)
 	manager.doLdbKeyLock(id)
 	defer manager.doLdbKeyUnlock(id)
@@ -359,7 +341,7 @@ func (manager *LdbManager) SetEx(key string, value StorageValueData, expiretime 
 	cEn := C.int(IS_EXIST_AND_EXPIRE)
 
 	//revise expiretime
-	expiretime = GetRevisedExpireTime(value.Version, expiretime, 0)
+	expiretime := GetRevisedExpireTime(ttl, 0)
 
 	log.Infof("SetEx key %v val %v ex %v", key, value, expiretime)
 
@@ -368,7 +350,7 @@ func (manager *LdbManager) SetEx(key string, value StorageValueData, expiretime 
 		C.size_t(len(key)),
 		C.uint64_t(0),
 		C.int(0),
-		C.long(expiretime),
+		C.uint64_t(expiretime),
 		valueItem,
 		cEn)
 	return int(ret)
@@ -381,6 +363,7 @@ func (manager *LdbManager) SetWithSecond(key string, value StorageValueData, met
 
 	var en SetOpt
 	en = IS_EXIST_AND_EXPIRE
+	var expiretime uint64
 	seconds := 0
 	unit := 0 // 0:seconds, 1:milliseconds
 	var err error
@@ -406,7 +389,7 @@ func (manager *LdbManager) SetWithSecond(key string, value StorageValueData, met
 			}
 		}
 
-		seconds = int(GetRevisedExpireTime(value.Version, uint32(seconds), unit))
+		expiretime = uint64(GetRevisedExpireTime(uint32(seconds), unit))
 	}
 	csKey := (*C.char)(StringPointer(key))
 	csVal := (*C.char)(StringPointer(value.Value))
@@ -427,7 +410,7 @@ func (manager *LdbManager) SetWithSecond(key string, value StorageValueData, met
 		C.size_t(len(key)),
 		C.uint64_t(meta.Lastversion),
 		C.int(unit),
-		C.long(seconds),
+		C.uint64_t(expiretime),
 		valueItem,
 		cEn)
 	return int(ret)

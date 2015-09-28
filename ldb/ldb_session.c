@@ -7,6 +7,7 @@
 #include "trace.h"
 #include "config.h"
 #include "lmalloc.h"
+#include "util.h"
 #include "util/cgo_util_base.h"
 
 #include "t_kv.h"
@@ -89,20 +90,26 @@ int ldb_set(ldb_context_t* context,
             size_t keylen, 
             uint64_t lastver, 
             int vercare, 
-            long exptime, 
+            uint64_t exptime, 
             value_item_t* item, 
             int en){
   int retval = 0;
   ldb_slice_t *slice_key, *slice_val , *slice_value = NULL;
   slice_key = ldb_slice_create(key, keylen);
   slice_val = ldb_slice_create(item->data_, item->data_len_);
-  ldb_meta_t *meta = ldb_meta_create(vercare, lastver, item->version_);
+  ldb_meta_t *meta = NULL;
   if(en == IS_NOT_EXIST){
+    meta = ldb_meta_create(vercare, lastver, item->version_);
     retval = string_setnx(context, slice_key, slice_val, meta);
   } else if(en == IS_EXIST){
+    meta = ldb_meta_create(vercare, lastver, item->version_);
     retval = string_set(context, slice_key, slice_val, meta);
   } else if(en == IS_EXIST_AND_EXPIRE){
+    meta = ldb_meta_create_with_exp(vercare, lastver, item->version_, exptime);
+    meta = ldb_meta_create(vercare, lastver, item->version_);
   } else if(en == IS_NOT_EXIST_AND_EXPIRE){
+    meta = ldb_meta_create_with_exp(vercare, lastver, item->version_, exptime);
+    retval = string_setnx(context, slice_key, slice_val, meta);
   }
 
 end:
@@ -118,7 +125,7 @@ end:
 int ldb_mset(ldb_context_t* context, 
              uint64_t lastver, 
              int vercare, 
-             long exptime, 
+             uint64_t exptime, 
              GoByteSlice* keyvals, 
              GoUint64Slice* versions, 
              size_t length,
@@ -141,15 +148,19 @@ int ldb_mset(ldb_context_t* context,
     ldb_slice_t *slice_val = ldb_slice_create(keyvals[i].data, keyvals[i].data_len);
     ldb_list_node_t *node_val = ldb_list_node_create();
     node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
-    node_val->data_ = slice_val;;
+    node_val->data_ = slice_val;
     lpush_ldb_list_node(datalist, node_val);
     ++i;
 
     //push meta
-    ldb_meta_t *meta = ldb_meta_create(vercare, lastver, versions->data[v]);
+    //ldb_meta_t *meta = ldb_meta_create(vercare, lastver, versions->data[v]);
     ldb_list_node_t *node_meta = ldb_list_node_create();
     node_meta->type_ = LDB_LIST_NODE_TYPE_META;
-    node_meta->data_ = meta;;
+    if(exptime >0){
+      node_meta->data_ = ldb_meta_create_with_exp(vercare, lastver, versions->data[v], exptime);      
+    }else{
+      node_meta->data_ = ldb_meta_create(vercare, lastver, versions->data[v]);
+    }
     lpush_ldb_list_node(metalist, node_meta);
     ++v;
   }
@@ -186,44 +197,146 @@ end:
 int ldb_expire(ldb_context_t* context,
               char* key,
               size_t keylen,
-              long exptime,
-              uint64_t expversion){
-    return 0;    
+              uint64_t exptime,
+              uint64_t version){
+    int retval = 0;
+    ldb_slice_t *slice_key = ldb_slice_create(key, keylen);
+    ldb_slice_t *slice_val = NULL;
+    ldb_meta_t *meta = ldb_meta_create_with_exp(0, 0, version, exptime);
+    ldb_meta_t *old_meta = NULL;
+
+    retval = string_get(context, slice_key, &slice_val, &old_meta);
+    if(retval != LDB_OK){
+        goto end;
+    }
+    retval = string_set(context, slice_key, slice_val, meta);
+    
+
+end:
+    ldb_slice_destroy(slice_key);
+    ldb_slice_destroy(slice_val);
+    ldb_meta_destroy(meta);
+    ldb_meta_destroy(old_meta);
+    return retval;
 }
 
 int ldb_pexpire(ldb_context_t* context,
                char* key,
                size_t keylen,
-               long exptime,
-               uint64_t expversion){
-    return 0;   
+               uint64_t exptime,
+               uint64_t version){
+    int retval = 0;
+    ldb_slice_t *slice_key = ldb_slice_create(key, keylen);
+    ldb_slice_t *slice_val = NULL;
+    ldb_meta_t *meta = ldb_meta_create_with_exp(0, 0, version, exptime);
+    ldb_meta_t *old_meta = NULL;
+
+    retval = string_get(context, slice_key, &slice_val, &old_meta);
+    if(retval != LDB_OK){
+        goto end;
+    }
+    retval = string_set(context, slice_key, slice_val, meta);
+
+end:
+    ldb_slice_destroy(slice_key);
+    ldb_slice_destroy(slice_val);
+    ldb_meta_destroy(meta);
+    ldb_meta_destroy(old_meta);
+    return retval;
 }
 
 int ldb_ttl(ldb_context_t* context,
            char* key,
            size_t keylen,
-           long* remain){
-    return 0;
+           uint64_t* remain){
+    int retval = 0;
+    ldb_slice_t *slice_key, *slice_val = NULL;
+    ldb_meta_t *meta = NULL;
+    slice_key = ldb_slice_create(key, keylen);
+
+    retval = string_get(context, slice_key, &slice_val, &meta);
+    if(retval != LDB_OK){
+        goto end;
+    }
+    int64_t ttl = (ldb_meta_exptime(meta)-time_ms());
+    if(ttl < 0){
+        ttl = 0;
+    }else{
+        ttl = ttl/1000;
+    }
+    *remain = (uint64_t)ttl;
+
+end:
+    ldb_slice_destroy(slice_key);
+    ldb_slice_destroy(slice_val);
+    ldb_meta_destroy(meta);
+    return retval;
 }
 
 int ldb_pttl(ldb_context_t* context,
             char* key,
             size_t keylen,
-            long* remain){
-    return 0;
+            uint64_t* remain){
+    int retval = 0;
+    ldb_slice_t *slice_key, *slice_val = NULL;
+    ldb_meta_t *meta = NULL;
+    slice_key = ldb_slice_create(key, keylen);
+
+    retval = string_get(context, slice_key, &slice_val, &meta);
+    if(retval != LDB_OK){
+        goto end;
+    }
+    int64_t ttl = (ldb_meta_exptime(meta)-time_ms());
+    if(ttl < 0){
+        ttl = 0;
+    }
+    *remain = (uint64_t)ttl;
+
+end:
+    ldb_slice_destroy(slice_key);
+    ldb_slice_destroy(slice_val);
+    ldb_meta_destroy(meta);
+    return retval;
 }
+
 
 int ldb_persist(ldb_context_t* context,
                char* key,
                size_t keylen,
                uint64_t version){
-    return 0;
+    int retval = 0;
+    ldb_slice_t *slice_key = ldb_slice_create(key, keylen);
+    ldb_meta_t *meta = NULL;
+    ldb_slice_t *slice_val = NULL;
+    retval = string_get(context, slice_key, &slice_val, &meta);
+    if(retval != LDB_OK){
+        goto end;
+    }
+    ldb_meta_t* new_meta = ldb_meta_create_with_exp(0, 0, version, 0);
+    retval = string_set(context, slice_key, slice_val, new_meta);
+    ldb_meta_destroy(new_meta);
+
+end:
+    ldb_slice_destroy(slice_key);
+    ldb_slice_destroy(slice_val);
+    ldb_meta_destroy(meta);
+    return retval;
 }
 
 int ldb_exists(ldb_context_t* context,
                char* key,
                size_t keylen){
-    return 0;                   
+    int retval = 0;
+    ldb_slice_t *slice_key = ldb_slice_create(key, keylen);
+    ldb_meta_t *meta = NULL;
+    ldb_slice_t *slice_val = NULL;
+    retval = string_get(context, slice_key, &slice_val, &meta);
+                   
+end:
+    ldb_slice_destroy(slice_key);
+    ldb_slice_destroy(slice_val);
+    ldb_meta_destroy(meta);
+    return retval;
 }
 
 int ldb_get(ldb_context_t* context, 
@@ -302,7 +415,7 @@ int ldb_mget(ldb_context_t* context,
     if( node_met->type_ == LDB_LIST_NODE_TYPE_NONE ){
       versions->data[now] = 0;
     }else{
-      versions->data[now] = node_met->value_;
+      versions->data[now] = ldb_meta_nextver((ldb_meta_t*)(node_met->data_));
     }
     items->data[now].cap = items->data[now].data_len;
     ++now;
