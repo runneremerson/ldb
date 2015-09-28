@@ -20,10 +20,13 @@ int main(int argc, char* argv[]){
   ldb_slice_destroy(val1);
   ldb_meta_destroy(meta1); 
 
-  assert(string_get(context, key1, &val1)==LDB_OK); 
+  ldb_meta_t *meta2 = NULL;
+
+  assert(string_get(context, key1, &val1, &meta2)==LDB_OK); 
 
   ldb_slice_destroy(val1);
   ldb_slice_destroy(key1);
+  ldb_meta_destroy(meta2);
 
   ldb_context_destroy(context);  
   return 0;
