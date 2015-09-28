@@ -1097,8 +1097,8 @@ int64_t DBImpl::TEST_MaxNextLevelOverlappingBytes() {
 Status DBImpl::Get(const ReadOptions& options,
                    const Slice& key,
                    std::string* value) {
-  assert(key.size() >= 20); //sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t) == vercare + lastver + nextver == 20 
-  Slice raw_key(key.data()+20, key.size()-20);
+  assert(key.size() >= 28); //sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t)*2 == vercare + lastver + nextver + exptime == 28 
+  Slice raw_key(key.data()+28, key.size()-28);
   Status s;
   MutexLock l(&mutex_);
   SequenceNumber snapshot;

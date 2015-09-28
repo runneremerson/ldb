@@ -102,22 +102,27 @@ void MemTable::Add(SequenceNumber s, ValueType type,
                    const Slice& key,
                    const Slice& value) {
   // Format of an entry is concatenation of:
-  //  key_size     : varint32 of internal_key.size()- sizeof(uint32_t) - 2*sizeof(uint64_t)
-  //  key bytes    : char[internal_key.size() - sizeof(uint32_t) - 2*sizeof(uint64_t)]
-  //  value_size   : varint32 of value.size() + sizeof(uint8_t) + sizeof(uint64_t)
-  //  value bytes  : char[value.size()+sizeof(uint8_t)+sizeof(uint64_t)], include fields-- type and currversion
-  const ValueType val_type = type;
+  //  key_size     : varint32 of internal_key.size()- sizeof(uint32_t) - 3*sizeof(uint64_t)
+  //  key bytes    : char[internal_key.size() - sizeof(uint32_t) - 3*sizeof(uint64_t)]
+  //  value_size   : varint32 of value.size() + sizeof(uint8_t) + sizeof(uint64_t) (maybe + sizeof(uint64_t) depends on type)
+  //  value bytes  : char[value.size()+sizeof(uint8_t)+sizeof(uint64_t) maybe + sizeof(uint64_t)], include fields-- type and currversion
+  ValueType val_type = type;
   if(type == kTypeValue ){
 
       size_t key_size = key.size();
       size_t val_size = value.size() + 1 + 8;
-      size_t mat_size = sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t);
+      size_t mat_size = sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t);
       assert(key_size > mat_size);
 
       //decode meta data
       uint32_t versioncare = DecodeFixed32(key.data());
       uint64_t lastversion = DecodeFixed64(key.data() + sizeof(uint32_t));
       uint64_t nextversion = DecodeFixed64(key.data() + sizeof(uint32_t) + sizeof(uint64_t));
+      uint64_t expiration = DecodeFixed64(key.data() + sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t));
+      if(expiration > 0){
+        val_type = ValueType(val_type & kTypeExpiration);
+        val_size += 8;
+      }
 
       //encode key
       size_t internal_key_size = key_size - mat_size + 8;
@@ -137,6 +142,10 @@ void MemTable::Add(SequenceNumber s, ValueType type,
       p += 1;
       EncodeFixed64(p, nextversion);
       p += 8;
+      if(val_type & kTypeExpiration){
+        EncodeFixed64(p, expiration);
+        p += 8;
+      }
       memcpy(p, value.data(), value.size());
       assert((p + value.size()) - buf == encoded_len);
 
@@ -164,7 +173,7 @@ void MemTable::Add(SequenceNumber s, ValueType type,
   }else if(type == kTypeDeletion){
       size_t key_size = key.size();
       size_t val_size = value.size() + 1 + 8; //+ type + nextversion
-      size_t mat_size = sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t);
+      size_t mat_size = sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t);
       assert(key_size > mat_size);
 
       //decode meta data

@@ -50,7 +50,8 @@ class InternalKey;
 // data structures.
 enum ValueType {
   kTypeDeletion = 0x0,
-  kTypeValue = 0x1
+  kTypeValue = 0x1,
+  kTypeExpiration = 0x2
 };
 // kValueTypeForSeek defines the ValueType that should be passed when
 // constructing a ParsedInternalKey object for seeking to a particular

@@ -78,7 +78,7 @@ void MetTable::KeyBucket::Insert(const std::string& key, uint64_t version){
 bool MetTable::KeyBucket::Remove(const std::string& key, uint64_t version){
   MutexLock l(&mutex_);
   std::tr1::unordered_map<std::string, uint64_t>::iterator key_iter=keys_.find(key);
-  if(key_iter!=keys_.end() && key_iter->second < version){
+  if(key_iter!=keys_.end() && key_iter->second <= version){
     keys_.erase(key_iter);
     dels_.insert(std::make_pair(key, version));
     return true;
