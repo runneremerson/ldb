@@ -114,7 +114,8 @@ void fill_meta(const char *key, uint64_t newver, std::string& skey){
   ptr += 8;
   leveldb::EncodeFixed64(ptr, newver);
   ptr += 8;
-  skey.append(met, 20);
+  leveldb::EncodeFixed64(ptr, 0);
+  skey.append(met, 28);
   skey.append(key, strlen(key));
 }
 
