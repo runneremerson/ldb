@@ -1,5 +1,5 @@
-#include "storage/t_kv.h"
-#include "storage/ldb_define.h"
+#include "ldb/t_kv.h"
+#include "ldb/ldb_define.h"
 
 #include <assert.h>
 #include <time.h>

@@ -92,16 +92,16 @@ case "$TARGET_OS" in
 esac
 
 
-rm -f storage/version.h
-echo "#ifndef LDB_DEPS_H" >> storage/version.h
-echo "#define LDB_DEPS_H" >> storage/version.h
-echo "#ifndef LDB_VERSION" >> storage/version.h
-echo "#define LDB_VERSION \"`cat version`\"" >> storage/version.h
-echo "#endif" >> storage/version.h
-echo "#endif" >> storage/version.h
-echo "#include <stdlib.h>" >> storage/version.h
-echo "#include <jemalloc/jemalloc.h>" >> storage/version.h
-echo "#endif" >> storage/version.h
+rm -f ldb/version.h
+echo "#ifndef LDB_DEPS_H" >> ldb/version.h
+echo "#define LDB_DEPS_H" >> ldb/version.h
+echo "#ifndef LDB_VERSION" >> ldb/version.h
+echo "#define LDB_VERSION \"`cat version`\"" >> ldb/version.h
+echo "#endif" >> ldb/version.h
+echo "#endif" >> ldb/version.h
+echo "#include <stdlib.h>" >> ldb/version.h
+echo "#include <jemalloc/jemalloc.h>" >> ldb/version.h
+echo "#endif" >> ldb/version.h
 
 rm -f build_config.mk
 echo CC=$CC >> build_config.mk
