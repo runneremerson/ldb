@@ -79,7 +79,6 @@ end:
 }
 
 int string_setnx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta){
-  leveldb_mutex_lock(context->mutex_);
   int retval = LDB_OK;
   if(ldb_slice_size(key) == 0){
     fprintf(stderr, "empty key!\n");
@@ -116,12 +115,10 @@ int string_setnx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
   retval = LDB_OK; 
 
 end:
-  leveldb_mutex_unlock(context->mutex_);
   return retval;
 }
 
 int string_setxx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta){
-  leveldb_mutex_lock(context->mutex_);
   int retval = LDB_OK;
   if(ldb_slice_size(key) == 0){
     fprintf(stderr, "empty key!\n");
@@ -157,13 +154,11 @@ int string_setxx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
   }
   retval = LDB_OK; 
 end:
-  leveldb_mutex_unlock(context->mutex_);
   return retval;
 }
 
 
 int string_mset(ldb_context_t* context, const ldb_list_t* datalist, const ldb_list_t* metalist, ldb_list_t** plist){
-  leveldb_mutex_lock(context->mutex_);
   int retval = 0; 
   ldb_list_iterator_t *dataiterator = ldb_list_iterator_create(datalist);
   ldb_list_iterator_t *metaiterator = ldb_list_iterator_create(metalist);
@@ -222,13 +217,11 @@ end:
   }
   ldb_list_iterator_destroy(dataiterator);
   ldb_list_iterator_destroy(metaiterator);
-  leveldb_mutex_unlock(context->mutex_);
   return retval;
 }
 
 
 int string_msetnx(ldb_context_t* context, const ldb_list_t* datalist, const ldb_list_t* metalist, ldb_list_t** plist){
-  leveldb_mutex_lock(context->mutex_);
   int retval = 0; 
   ldb_list_iterator_t *dataiterator = ldb_list_iterator_create(datalist);
   ldb_list_iterator_t *metaiterator = ldb_list_iterator_create(metalist);
@@ -301,7 +294,6 @@ end:
   }
   ldb_list_iterator_destroy(dataiterator);
   ldb_list_iterator_destroy(metaiterator);
-  leveldb_mutex_unlock(context->mutex_);
   return retval;
 }
 
@@ -404,7 +396,6 @@ end:
 
 
 int string_incr(ldb_context_t* context, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t init, int64_t by, int64_t* val){
-  leveldb_mutex_lock(context->mutex_);
   int retval = 0;
   ldb_slice_t *slice_value = NULL;
   int found = string_get(context, key, &slice_value);
@@ -442,7 +433,6 @@ int string_incr(ldb_context_t* context, const ldb_slice_t* key, const ldb_meta_t
   retval = LDB_OK;
 
 end:
-  leveldb_mutex_unlock(context->mutex_);
   ldb_slice_destroy(slice_value);
   return retval;
 }

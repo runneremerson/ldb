@@ -257,8 +257,6 @@ end:
 }
 
 int hash_incr(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t by, int64_t* val){
-  leveldb_mutex_lock(context->mutex_);
-
   int retval = 0;
   ldb_slice_t *slice_old_val, *slice_new_val= NULL;
   int64_t old_val = 0;
@@ -298,7 +296,6 @@ int hash_incr(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t
   }
  
 end:
-  leveldb_mutex_unlock(context->mutex_);
   ldb_slice_destroy(slice_old_val);
   ldb_slice_destroy(slice_new_val);
   return retval;

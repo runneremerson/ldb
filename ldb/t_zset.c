@@ -182,7 +182,6 @@ end:
 
 int zset_add(ldb_context_t* context, const ldb_slice_t* name, 
              const ldb_slice_t* key, const ldb_meta_t* meta, int64_t score){
-  leveldb_mutex_lock(context->mutex_);
   int ret = zset_one(context, name, key, meta, score);
   int retval = LDB_OK;
   if(ret >= 0){
@@ -206,13 +205,11 @@ int zset_add(ldb_context_t* context, const ldb_slice_t* name,
   }
 
 end:
-  leveldb_mutex_unlock(context->mutex_);
   return retval;
 }
 
 int zset_del(ldb_context_t* context, const ldb_slice_t* name, 
              const ldb_slice_t* key, const ldb_meta_t* meta){
-  leveldb_mutex_lock(context->mutex_);
   int ret = zdel_one(context, name, key, meta);
   int retval = LDB_OK; 
   if(ret >= 0){
@@ -235,7 +232,6 @@ int zset_del(ldb_context_t* context, const ldb_slice_t* name,
     retval = LDB_ERR;
   }
 end:
-  leveldb_mutex_unlock(context->mutex_);
   return retval;
 }
 
@@ -546,7 +542,6 @@ end:
 
 int zset_incr(ldb_context_t* context, const ldb_slice_t* name, 
               const ldb_slice_t* key, const ldb_meta_t* meta, int64_t by, int64_t* val){
-  leveldb_mutex_lock(context->mutex_);
   int64_t old_score = 0;
   int ret = zset_get(context, name, key, &old_score);
   int retval = LDB_OK;
@@ -580,7 +575,6 @@ int zset_incr(ldb_context_t* context, const ldb_slice_t* name,
   }
   
 end:
-  leveldb_mutex_unlock(context->mutex_);
   return retval;
 }
 
