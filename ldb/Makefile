@@ -2,17 +2,14 @@ CC=gcc
 MAKE=make
 
 LDB_OBJS = ldb_session.o ldb_bytes.o ldb_context.o ldb_list.o ldb_meta.o ldb_slice.o \
-	   ldb_iterator.o lmalloc.o util.o t_kv.o t_zset.o t_hash.o 
-
-ORG_OBJS = ldb_bytes.o ldb_list.o ldb_slice.o ldb_iterator.o lmalloc.o util.o
+	   ldb_iterator.o lmalloc.o util.o t_kv.o t_zset.o t_hash.o ttl.o 
 
 
-#CFLAGS= -std=gnu99 -O2 -I../ -I../../ -DUSE_TCMALLOC=1 -DUSE_INT=1 
+
 CFLAGS= -std=gnu99 -O0 -g -I../ -I../../ -DUSE_TCMALLOC=1 -DUSE_INT=1 
 
-all: ${LDB_OBJS} ${ORG_OBJS}
+all: ${LDB_OBJS}
 	ar -cru ../libldb.a ${LDB_OBJS}
-	ar -cru ../liborg.a ${ORG_OBJS}
 
 
 ldb_session.o: ldb_session.h ldb_session.c
@@ -39,6 +36,8 @@ t_zset.o: t_zset.h t_zset.c
 	${CC} ${CFLAGS} -c t_zset.c
 t_hash.o: t_hash.h t_hash.c
 	${CC} ${CFLAGS} -c t_hash.c
+ttl.o: ttl.h ttl.c
+	${CC} ${CFLAGS} -c ttl.c
 
 
 

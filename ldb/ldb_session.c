@@ -186,6 +186,36 @@ end:
   return retval;
 }
 
+int ldb_expire(ldb_context_t* context,
+              char* key,
+              size_t keylen,
+              long exptime,
+              uint64_t expversion){
+    return 0;    
+}
+
+int ldb_pexpire(ldb_context_t* context,
+               char* key,
+               size_t keylen,
+               long exptime,
+               uint64_t expversion){
+    return 0;   
+}
+
+int ldb_ttl(ldb_context_t* context,
+           char* key,
+           size_t keylen,
+           long* remain){
+    return 0;
+}
+
+int ldb_pttl(ldb_context_t* context,
+            char* key,
+            size_t keylen,
+            long* remain){
+    return 0;
+}
+
 int ldb_get(ldb_context_t* context, 
             char* key, 
             size_t keylen, 

@@ -21,7 +21,6 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
     leveldb_options_set_filter_policy(context->options_, context->filtter_policy_);
     context->block_cache_ = leveldb_cache_create_lru(cache_size*1024*1024);
     leveldb_options_set_cache(context->options_, context->block_cache_);
-    context->mutex_ = leveldb_mutex_create();
     context->batch_ = leveldb_writebatch_create();
     leveldb_options_set_block_size(context->options_, 32*1024);
     leveldb_options_set_write_buffer_size(context->options_, write_buffer_size*1024*1024);
@@ -46,9 +45,6 @@ err:
     if(context->block_cache_!=NULL){
         leveldb_cache_destroy(context->block_cache_);
     }
-    if(context->mutex_!=NULL){
-        leveldb_mutex_destroy(context->mutex_);
-    }
     if(context->batch_!=NULL){
         leveldb_writebatch_destroy(context->batch_);
     }
@@ -62,7 +58,6 @@ void ldb_context_destroy( ldb_context_t* context){
         leveldb_options_destroy(context->options_);
         leveldb_filterpolicy_destroy(context->filtter_policy_);
         leveldb_cache_destroy(context->block_cache_);
-        leveldb_mutex_destroy(context->mutex_);
         leveldb_writebatch_destroy(context->batch_);
     }
     lfree(context);

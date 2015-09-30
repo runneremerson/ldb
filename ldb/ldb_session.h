@@ -47,6 +47,25 @@ int ldb_mset(ldb_context_t* context,
              int length,
              GoUint64Slice* retvals,
              int en);
+int ldb_expire(ldb_context_t* context,
+              char* key,
+              size_t keylen,
+              long exptime,
+              uint64_t expversion);
+int ldb_pexpire(ldb_context_t* context,
+               char* key,
+               size_t keylen,
+               long exptime,
+               uint64_t expversion); 
+int ldb_ttl(ldb_context_t* context,
+           char* key,
+           size_t keylen,
+           long* remain);
+
+int ldb_pttl(ldb_context_t* context,
+            char* key,
+            size_t keylen,
+            long* remain);
 
 int ldb_get(ldb_context_t* context, 
             char* key, 
