@@ -452,14 +452,14 @@ int ldb_incrby(ldb_context_t* context,
                size_t keylen,
                uint64_t lastver,
                int vercare,
-               long exptime,
+               uint64_t exptime,
                uint64_t version,
                int64_t initval,
                int64_t by,
                int64_t* result){
   int retval = 0;
   ldb_slice_t *slice_key = ldb_slice_create(key, keylen);
-  ldb_meta_t *meta = ldb_meta_create(vercare, lastver, version);
+  ldb_meta_t *meta = ldb_meta_create_with_exp(vercare, lastver, version, exptime);
   retval = string_incr(context, slice_key, meta, initval, by, result);
 
 end:
@@ -694,19 +694,13 @@ int ldb_hincrby(ldb_context_t* context,
                 uint64_t lastver,
                 int vercare,
                 value_item_t* item,
-                long long by,
-                long long* result){
+                int64_t by,
+                int64_t* result){
     int retval = 0;                    
     ldb_slice_t *slice_name = ldb_slice_create(name, namelen);
     ldb_slice_t *slice_key = ldb_slice_create(item->data_, item->data_len_);
     ldb_meta_t *meta = ldb_meta_create(vercare, lastver, item->version_);
-    int64_t  ldb_by, ldb_result = 0 ;
-    ldb_by = (int64_t)by;
-    retval = hash_incr(context, slice_name, slice_key, meta, ldb_by, &ldb_result);
-    if(retval != LDB_OK){
-        goto end;                     
-    }
-    *result = (long long)ldb_result;
+    retval = hash_incr(context, slice_name, slice_key, meta, by, result);
 
 end:
     ldb_slice_destroy(slice_name);
@@ -839,15 +833,10 @@ end:
 int ldb_hlen(ldb_context_t* context,
              char* name,
              size_t namelen,
-             long long* length){
+             uint64_t* length){
     int retval = 0;
     ldb_slice_t* slice_name = ldb_slice_create(name, namelen);
-    uint64_t ldb_length = 0;
-    retval = hash_length(context, slice_name, &ldb_length);
-    if(retval != LDB_OK){
-        goto end;
-    }
-    *length = (long long)ldb_length; 
+    retval = hash_length(context, slice_name, length);
 
 end:
     ldb_slice_destroy(slice_name);
@@ -1097,7 +1086,6 @@ int ldb_zincrby(ldb_context_t* context,
                 size_t namelen,
                 uint64_t lastver,
                 int vercare,
-                long exptime,
                 value_item_t* item,
                 int64_t by,
                 int64_t* score){

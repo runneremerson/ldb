@@ -19,8 +19,8 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
     context->options_ = leveldb_options_create();
     leveldb_options_set_create_if_missing(context->options_, 1);
     leveldb_options_set_max_open_files(context->options_, 10000);
-    context->filtter_policy_ = leveldb_filterpolicy_create_bloom(10);
-    leveldb_options_set_filter_policy(context->options_, context->filtter_policy_);
+    context->filter_policy_ = leveldb_filterpolicy_create_bloom(10);
+    leveldb_options_set_filter_policy(context->options_, context->filter_policy_);
     context->block_cache_ = leveldb_cache_create_lru(cache_size*1024*1024);
     leveldb_options_set_cache(context->options_, context->block_cache_);
     context->batch_ = leveldb_writebatch_create();
@@ -44,8 +44,8 @@ err:
     if(context->options_!=NULL){
         leveldb_options_destroy(context->options_);
     }
-    if(context->filtter_policy_!=NULL){
-        leveldb_filterpolicy_destroy(context->filtter_policy_);
+    if(context->filter_policy_!=NULL){
+        leveldb_filterpolicy_destroy(context->filter_policy_);
     }
     if(context->block_cache_!=NULL){
         leveldb_cache_destroy(context->block_cache_);
@@ -67,7 +67,7 @@ void ldb_context_destroy( ldb_context_t* context){
     if(context!=NULL){
         leveldb_close(context->database_);
         leveldb_options_destroy(context->options_);
-        leveldb_filterpolicy_destroy(context->filtter_policy_);
+        leveldb_filterpolicy_destroy(context->filter_policy_);
         leveldb_cache_destroy(context->block_cache_);
         leveldb_writebatch_destroy(context->batch_);
         leveldb_mutex_destroy(context->mutex_);

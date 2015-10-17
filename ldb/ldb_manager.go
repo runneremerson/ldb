@@ -46,6 +46,22 @@ func ConvertCValueItemPointer2GoByte(valueItems *C.value_item_t, i int, value *S
 	}
 }
 
+func ConvertCIntPointer2Go(intItems *C.int, i int, value *int) {
+	if unsafe.Pointer(intItems) != CNULL {
+		*value = int(*(*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(intItems)) + uintptr(i)*INT_SIZE)))
+	}
+}
+
+func ConvertCValueItemPointer2ByteSlice(valueItems *C.value_item_t, i int, buf *[]byte) {
+	var item *C.value_item_t
+	item = (*C.value_item_t)(unsafe.Pointer(uintptr(unsafe.Pointer(valueItems)) + uintptr(i)*VALUE_ITEM_SIZE))
+	if unsafe.Pointer(item.data_) != CNULL {
+		*buf = C.GoBytes(unsafe.Pointer(item.data_), C.int(item.data_len_))
+	} else {
+		*buf = nil
+	}
+}
+
 func FreeValueItems(valueItems *C.value_item_t, size C.size_t) {
 	if unsafe.Pointer(valueItems) != CNULL {
 		C.destroy_value_item_array(valueItems, size)
@@ -479,4 +495,504 @@ func (manager *LdbManager) Del(keys []string, versions []StorageVersionType, met
 		rets[i] = int(ret)
 	}
 	return cnt, rets
+}
+
+func (manager *LdbManager) Incr(key string, meta StorageMetaData, version StorageVersionType, value *int64) int {
+	return manager.IncrDecr(key, meta, version, 1, value)
+}
+
+func (manager *LdbManager) Incrby(key string, meta StorageMetaData, version StorageVersionType, by int64, value *int64) int {
+	return manager.IncrDecr(key, meta, version, by, value)
+}
+
+func (manager *LdbManager) Decr(key string, meta StorageMetaData, version StorageVersionType, value *int64) int {
+	return manager.IncrDecr(key, meta, version, -1, value)
+}
+
+func (manager *LdbManager) Decrby(key string, meta StorageMetaData, version StorageVersionType, by int64, value *int64) int {
+	return manager.IncrDecr(key, meta, version, -1*by, value)
+}
+
+func (manager *LdbManager) IncrDecr(key string, meta StorageMetaData, version StorageVersionType, by int64, value *int64) int {
+	id := getLockID(string(key))
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	cInit := C.int64_t(0)
+	cBy := C.int64_t(by)
+	cValue := C.int64_t(0)
+
+	ret := C.ldb_incrby(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		C.uint64_t(meta.Lastversion),
+		C.int(meta.Versioncare),
+		C.uint64_t(meta.Expiretime),
+		C.uint64_t(version),
+		cInit,
+		cBy,
+		&cValue)
+
+	*value = int64(cValue)
+	return int(ret)
+}
+
+func (manager *LdbManager) MSet(keyVals [][]byte, versions []StorageVersionType, meta StorageMetaData, en SetOpt, results []uint64) int {
+	manager.doLdbLock()
+	defer manager.doLdbUnlock()
+
+	cSize := C.size_t(len(keyVals))
+	cEn := C.int(en)
+
+	ret := C.ldb_mset(manager.context,
+		C.uint64_t(meta.Lastversion),
+		C.int(meta.Versioncare),
+		C.uint64_t(meta.Expiretime),
+		(*C.GoByteSlice)(unsafe.Pointer(&keyVals[0])),
+		(*C.GoUint64Slice)(unsafe.Pointer(&versions)),
+		cSize,
+		(*C.GoUint64Slice)(unsafe.Pointer(&results)),
+		cEn)
+
+	return int(ret)
+}
+
+func (manager *LdbManager) MGet(keys [][]byte, results *[][]byte, versions []uint64) int {
+	manager.doLdbLock()
+	defer manager.doLdbUnlock()
+
+	if len(keys) == 0 {
+		return STORAGE_ERR
+	}
+
+	cSize := C.size_t(0)
+
+	ret := C.ldb_mget(manager.context,
+		(*C.GoByteSlice)(unsafe.Pointer(&keys[0])),
+		C.size_t(len(keys)),
+		(*C.GoByteSliceSlice)(unsafe.Pointer(results)),
+		(*C.GoUint64Slice)(unsafe.Pointer(&versions)),
+		&cSize)
+	iRet := int(ret)
+
+	if iRet == 0 {
+		if log.V(2) {
+			log.V(2).Infof("versions %v len %v", versions, len(versions))
+			log.V(2).Infof("results %v len %v", *results, len(*results))
+			for i, _ := range *results {
+				log.V(2).Infof("result[%d] %v", i, (*results)[i])
+			}
+		}
+	}
+
+	return iRet
+}
+
+func (manager *LdbManager) HSet(key, field string, value StorageValueData, meta StorageMetaData) int {
+	id := getLockID(string(key))
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+	csField := C.CString(field)
+	csValue := C.CString(value.Value)
+
+	defer C.free(unsafe.Pointer(csKey))
+	defer C.free(unsafe.Pointer(csField))
+	defer C.free(unsafe.Pointer(csValue))
+
+	valueItem := new(C.value_item_t)
+	valueItem.data_len_ = C.size_t(len(value.Value))
+	valueItem.data_ = csValue
+	valueItem.version_ = C.uint64_t(value.Version)
+
+	ret := C.ldb_hset(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		C.uint64_t(meta.Lastversion),
+		C.int(meta.Versioncare),
+		csField,
+		C.size_t(len(field)),
+		valueItem)
+
+	return int(ret)
+}
+
+func (manager *LdbManager) HGet(key, field []byte) (int, StorageByteValueData) {
+	id := getLockID(string(key))
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	var valueItem *C.value_item_t
+	valueItem = (*C.value_item_t)(CNULL)
+
+	ret := C.ldb_hget(manager.context,
+		(*C.GoByteSlice)(unsafe.Pointer(&key)),
+		(*C.GoByteSlice)(unsafe.Pointer(&field)),
+		&valueItem)
+	iRet := int(ret)
+
+	value := StorageByteValueData{}
+
+	if iRet == 0 {
+		ConvertCValueItemPointer2GoByte(valueItem, 0, &value)
+	}
+
+	FreeValueItems(valueItem, 1)
+
+	return iRet, value
+}
+
+func (manager *LdbManager) HExists(key, field string) int {
+	id := getLockID(string(key))
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+	csField := C.CString(field)
+
+	defer C.free(unsafe.Pointer(csKey))
+	defer C.free(unsafe.Pointer(csField))
+
+	ret := C.ldb_hexists(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		csField,
+		C.size_t(len(field)))
+
+	return int(ret)
+}
+
+func (manager *LdbManager) HIncrby(key, field string, version StorageVersionType, by int64, result *int64, meta StorageMetaData) int {
+	id := getLockID(string(key))
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+	csField := C.CString(field)
+
+	defer C.free(unsafe.Pointer(csKey))
+	defer C.free(unsafe.Pointer(csField))
+
+	fieldItem := new(C.value_item_t)
+	fieldItem.data_len_ = C.size_t(len(field))
+	fieldItem.data_ = csField
+	fieldItem.version_ = C.uint64_t(version)
+	cResult := C.int64_t(0)
+
+	// set key-field-value
+	ret := C.ldb_hincrby(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		C.uint64_t(meta.Lastversion),
+		C.int(meta.Versioncare),
+		fieldItem,
+		C.int64_t(by), &cResult)
+
+	*result = int64(cResult)
+
+	return int(ret)
+}
+
+func (manager *LdbManager) HmSet(key string, values map[string]StorageValueData, meta StorageMetaData) (int, map[string]int) {
+	id := getLockID(string(key))
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+	defer C.free(unsafe.Pointer(csKey))
+
+	valueItems := make([]C.value_item_t, len(values)*2)
+	index := 0
+	for f, v := range values {
+		// field
+		csField := C.CString(f)
+		defer C.free(unsafe.Pointer(csField))
+		valueItems[index].data_len_ = C.size_t(len(f))
+		valueItems[index].data_ = csField
+		valueItems[index].version_ = C.uint64_t(v.Version)
+
+		index += 1
+
+		// value
+		csValue := C.CString(v.Value)
+		defer C.free(unsafe.Pointer(csValue))
+		valueItems[index].data_len_ = C.size_t(len(v.Value))
+		valueItems[index].data_ = csValue
+		valueItems[index].version_ = C.uint64_t(v.Version)
+
+		if v.Version == 0 {
+			log.Errorf("HMSet value %s version %u is zero! return -1", v.Value, v.Version)
+			return -1, nil
+		}
+
+		index += 1
+	}
+
+	var results *C.int
+	results = (*C.int)(CNULL)
+
+	// set key-fields-values
+	ret := C.ldb_hmset(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		C.uint64_t(meta.Lastversion),
+		C.int(meta.Versioncare),
+		(*C.value_item_t)(unsafe.Pointer(&valueItems[0])),
+		C.size_t(index),
+		&results)
+
+	resultMap := map[string]int{}
+	if int(ret) == 0 {
+		k := 0
+		for i := 0; i < len(valueItems); i += 2 {
+			key := C.GoStringN(valueItems[i].data_, C.int(valueItems[i].data_len_))
+			tmpInt := int(0)
+			ConvertCIntPointer2Go(results, k, &tmpInt)
+			resultMap[key] = tmpInt
+			k += 1
+		}
+	}
+
+	if unsafe.Pointer(results) != CNULL {
+		C.free(unsafe.Pointer(results))
+	}
+
+	return int(ret), resultMap
+}
+
+func (manager *LdbManager) HmGet(key string, fields []string) (int, []StorageByteValueData) {
+	id := getLockID(string(key))
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+	defer C.free(unsafe.Pointer(csKey))
+
+	cFields := make([]C.value_item_t, len(fields))
+
+	var valueItems *C.value_item_t
+	valueItems = (*C.value_item_t)(CNULL)
+
+	index := 0
+	for _, f := range fields {
+		// field
+		csField := C.CString(f)
+		cFields[index].data_len_ = C.size_t(len(f))
+		cFields[index].data_ = csField
+		index += 1
+	}
+
+	for _, f := range cFields {
+		defer C.free(unsafe.Pointer(f.data_))
+	}
+
+	cSize := C.size_t(0)
+
+	// get key-fields-values
+	ret := C.ldb_hmget(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		(*C.value_item_t)(unsafe.Pointer(&cFields[0])),
+		C.size_t(len(cFields)),
+		&valueItems,
+		&cSize)
+	iRet := int(ret)
+
+	var values []StorageByteValueData
+
+	if iRet == 0 {
+		values = make([]StorageByteValueData, int(cSize))
+		for i := 0; i < int(cSize); i += 1 {
+			ConvertCValueItemPointer2GoByte(valueItems, i, &values[i])
+		}
+	}
+
+	FreeValueItems(valueItems, cSize)
+
+	return iRet, values
+}
+
+func (manager *LdbManager) HDel(key string, fields map[string]StorageValueData, meta StorageMetaData) (int, map[string]int) {
+	id := getLockID(string(key))
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	valueItems := make([]C.value_item_t, len(fields)*2)
+	index := 0
+	for f, v := range fields {
+		// field
+		csField := C.CString(f)
+		defer C.free(unsafe.Pointer(csField))
+		valueItems[index].data_len_ = C.size_t(len(f))
+		valueItems[index].data_ = csField
+		valueItems[index].version_ = C.uint64_t(v.Version)
+
+		index += 1
+
+		// value
+		csValue := C.CString(v.Value)
+		defer C.free(unsafe.Pointer(csValue))
+		valueItems[index].data_len_ = C.size_t(len(v.Value))
+		valueItems[index].data_ = csValue
+		valueItems[index].version_ = C.uint64_t(v.Version)
+
+		index += 1
+	}
+
+	var results *C.int
+	results = (*C.int)(CNULL)
+
+	// del fields
+	ret := C.ldb_hdel(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		C.uint64_t(meta.Lastversion),
+		C.int(meta.Versioncare),
+		(*C.value_item_t)(unsafe.Pointer(&valueItems[0])),
+		C.size_t(index),
+		&results)
+
+	resultMap := map[string]int{}
+	if int(ret) == 0 {
+		j := 0
+		for i := 0; i < len(fields); i += 1 {
+			key := C.GoStringN(valueItems[j].data_, C.int(valueItems[j].data_len_))
+			tmpInt := int(0)
+			ConvertCIntPointer2Go(results, i, &tmpInt)
+			resultMap[key] = tmpInt
+			j += 2
+		}
+	}
+
+	if unsafe.Pointer(results) != CNULL {
+		C.free(unsafe.Pointer(results))
+	}
+
+	return int(ret), resultMap
+}
+
+func (manager *LdbManager) HLen(key string) (ret int, length uint64) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	cLen := C.uint64_t(0)
+
+	retval := C.ldb_hlen(manager.context, csKey, C.size_t(len(key)), &cLen)
+
+	return int(retval), uint64(cLen)
+}
+
+func (manager *LdbManager) HKeys(key string) (ret int, values [][]byte) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	var valueItems *C.value_item_t
+	valueItems = (*C.value_item_t)(CNULL)
+
+	cSize := C.size_t(0)
+
+	// get all members in the key
+	retval := C.ldb_hkeys(manager.context, csKey, C.size_t(len(key)), &valueItems, &cSize)
+
+	iRet := int(retval)
+
+	keys := make([][]byte, int(cSize))
+
+	if iRet == 0 {
+		for i := 0; i < int(cSize); i += 1 {
+			ConvertCValueItemPointer2ByteSlice(valueItems, i, &keys[i])
+		}
+	}
+
+	FreeValueItems(valueItems, cSize)
+
+	return iRet, keys
+}
+
+func (manager *LdbManager) HVals(key string) (ret int, values [][]byte) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	var valueItems *C.value_item_t
+	valueItems = (*C.value_item_t)(CNULL)
+
+	cSize := C.size_t(0)
+
+	// get all values
+	retval := C.ldb_hvals(manager.context, csKey, C.size_t(len(key)), &valueItems, &cSize)
+
+	iRet := int(retval)
+
+	vals := make([][]byte, int(cSize))
+
+	if iRet == 0 {
+		for i := 0; i < int(cSize); i += 1 {
+			ConvertCValueItemPointer2ByteSlice(valueItems, i, &vals[i])
+		}
+	}
+
+	FreeValueItems(valueItems, cSize)
+
+	return iRet, vals
+}
+
+func (manager *LdbManager) HGetAll(key string) (ret int, values map[string]StorageByteValueData) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+	defer C.free(unsafe.Pointer(csKey))
+
+	var valueItems *C.value_item_t
+	valueItems = (*C.value_item_t)(CNULL)
+
+	cSize := C.size_t(0)
+
+	// get all members in the key
+	retval := C.ldb_hgetall(manager.context, csKey, C.size_t(len(key)), &valueItems, &cSize)
+
+	iRet := int(retval)
+
+	members := map[string]StorageByteValueData{}
+
+	if iRet == 0 {
+		fields := make([]StorageByteValueData, int(cSize/2))
+		values := make([]StorageByteValueData, int(cSize/2))
+		index := 0
+		for i := 0; i < int(cSize); i += 2 {
+			ConvertCValueItemPointer2GoByte(valueItems, i, &fields[index])
+			ConvertCValueItemPointer2GoByte(valueItems, i+1, &values[index])
+			members[string(fields[index].Value)] = values[index]
+			index += 1
+		}
+	}
+
+	FreeValueItems(valueItems, cSize)
+
+	return iRet, members
 }

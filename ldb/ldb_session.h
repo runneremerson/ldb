@@ -102,7 +102,7 @@ int ldb_incrby(ldb_context_t* context,
                size_t keylen,
                uint64_t lastver,
                int vercare,
-               long exptime,
+               uint64_t exptime,
                uint64_t version,
                int64_t initval,
                int64_t by,
@@ -146,8 +146,8 @@ int ldb_hincrby(ldb_context_t* context,
                 uint64_t lastver,
                 int vercare,
                 value_item_t* item,
-                long long by,
-                long long* result);
+                int64_t by,
+                int64_t* result);
 
 int ldb_hset(ldb_context_t* context,
              char* name,
@@ -179,7 +179,7 @@ int ldb_hdel(ldb_context_t* context,
 int ldb_hlen(ldb_context_t* context,
              char* name,
              size_t namelen,
-             long long* length);
+             uint64_t* length);
 
 int ldb_hexists(ldb_context_t* context,
                 char* name,
@@ -252,7 +252,6 @@ int ldb_zincrby(ldb_context_t* context,
                 size_t namelen,
                 uint64_t lastver,
                 int vercare,
-                long exptime,
                 value_item_t* item,
                 int64_t by,
                 int64_t* score);
