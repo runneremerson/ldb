@@ -109,7 +109,7 @@ func (value *StorageByteValueData) IsNil() bool {
 type StorageScoreValueData struct {
 	Value   string
 	Version StorageVersionType
-	Score   float64
+	Score   int64
 }
 
 type StorageStatusItem struct {
@@ -223,13 +223,13 @@ type IStorageManager interface {
 
 	ZCard(key string) (int, uint64)
 
-	ZScore(key string, value StorageValueData) (int, float64)
+	ZScore(key string, value StorageValueData) (int, int64)
 
-	ZRange(key string, start, end, withscore int) (int, []StorageByteValueData, []float64)
+	ZRange(key string, start, end, withscore int) (int, []StorageByteValueData, []int64)
 
-	ZRevrange(key string, start, end, withscore int) (int, []StorageByteValueData, []float64)
+	ZRevrange(key string, start, end, withscore int) (int, []StorageByteValueData, []int64)
 
-	ZRangeByScore(key string, min, max string, withscore int, limit int, reverse int) (int, []StorageByteValueData, []float64)
+	ZRangeByScore(key string, min, max string, withscore int, reverse int) (int, []StorageByteValueData, []int64)
 
 	ZRemRangeByScore(key string, min, max string, version StorageVersionType, meta StorageMetaData) (int, uint64)
 

@@ -25,6 +25,7 @@ const (
 	VALUE_ITEM_SIZE = unsafe.Sizeof(C.value_item_t{})
 	DOUBLE_SIZE     = unsafe.Sizeof(C.double(0.0))
 	INT_SIZE        = unsafe.Sizeof(C.int(0))
+	INT64_SIZE      = unsafe.Sizeof(C.int64_t(0))
 )
 
 // StringPointer returns &s[0], which is not allowed in go
@@ -49,6 +50,12 @@ func ConvertCValueItemPointer2GoByte(valueItems *C.value_item_t, i int, value *S
 func ConvertCIntPointer2Go(intItems *C.int, i int, value *int) {
 	if unsafe.Pointer(intItems) != CNULL {
 		*value = int(*(*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(intItems)) + uintptr(i)*INT_SIZE)))
+	}
+}
+
+func ConvertCInt64Pointer2Go(int64Items *C.int64_t, i int, value *int64) {
+	if unsafe.Pointer(int64Items) != CNULL {
+		*value = int64(*(*C.int64_t)(unsafe.Pointer(uintptr(unsafe.Pointer(int64Items)) + uintptr(i)*INT64_SIZE)))
 	}
 }
 
@@ -995,4 +1002,440 @@ func (manager *LdbManager) HGetAll(key string) (ret int, values map[string]Stora
 	FreeValueItems(valueItems, cSize)
 
 	return iRet, members
+}
+
+func (manager *LdbManager) ZAdd(key string, scoreValues []StorageScoreValueData, meta StorageMetaData) (int, []int) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	valueItems := make([]C.value_item_t, len(scoreValues))
+	scoreItems := make([]C.int64_t, len(scoreValues))
+	index := 0
+	for _, v := range scoreValues {
+		// value
+		csValue := C.CString(v.Value)
+		defer C.free(unsafe.Pointer(csValue))
+		valueItems[index].data_len_ = C.size_t(len(v.Value))
+		valueItems[index].data_ = csValue
+		valueItems[index].version_ = C.uint64_t(v.Version)
+
+		if v.Version == 0 {
+			log.Errorf("ZAdd value %s version %u is zero! return -1", v.Value, v.Version)
+			return -1, nil
+		}
+
+		// score
+		scoreItems[index] = C.int64_t(v.Score)
+
+		index += 1
+	}
+
+	var results *C.int
+	results = (*C.int)(CNULL)
+
+	ret := C.ldb_zadd(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		C.uint64_t(meta.Lastversion),
+		C.int(meta.Versioncare),
+		(*C.value_item_t)(unsafe.Pointer(&valueItems[0])),
+		(*C.int64_t)(unsafe.Pointer(&scoreItems[0])),
+		C.size_t(index),
+		&results)
+
+	retArr := make([]int, len(scoreValues))
+	if int(ret) == 0 {
+		for i := 0; i < len(scoreValues); i += 1 {
+			tmpInt := int(0)
+			ConvertCIntPointer2Go(results, i, &tmpInt)
+			retArr[i] = tmpInt
+		}
+	}
+
+	if unsafe.Pointer(results) != CNULL {
+		C.free(unsafe.Pointer(results))
+	}
+
+	return int(ret), retArr
+}
+
+func (manager *LdbManager) ZRem(key string, values []StorageValueData, meta StorageMetaData) (int, []int) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	valueItems := make([]C.value_item_t, len(values))
+	index := 0
+	for _, v := range values {
+		// value
+		csValue := C.CString(v.Value)
+		defer C.free(unsafe.Pointer(csValue))
+		valueItems[index].data_len_ = C.size_t(len(v.Value))
+		valueItems[index].data_ = csValue
+		valueItems[index].version_ = C.uint64_t(v.Version)
+
+		index += 1
+	}
+
+	var results *C.int
+	results = (*C.int)(CNULL)
+
+	ret := C.ldb_zrem(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		C.uint64_t(meta.Lastversion),
+		C.int(meta.Versioncare),
+		(*C.value_item_t)(unsafe.Pointer(&valueItems[0])),
+		C.size_t(index),
+		&results)
+
+	retArr := make([]int, len(values))
+	if int(ret) == 0 {
+		for i := 0; i < len(values); i += 1 {
+			tmpInt := int(0)
+			ConvertCIntPointer2Go(results, i, &tmpInt)
+			retArr[i] = tmpInt
+		}
+	}
+
+	if unsafe.Pointer(results) != CNULL {
+		C.free(unsafe.Pointer(results))
+	}
+
+	return int(ret), retArr
+}
+
+func (manager *LdbManager) ZCount(key string, start, end string) (int, uint64) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	cCount := C.uint64_t(0)
+	var scoreStart int64
+	var scoreEnd int64
+	var err error
+	scoreStart, err = strconv.ParseInt(start, 10, 64)
+	if err != nil {
+		return STORAGE_ERR, 0
+	}
+	scoreEnd, err = strconv.ParseInt(end, 10, 64)
+	if err != nil {
+		return STORAGE_ERR, 0
+	}
+	cScoreStart := C.int64_t(scoreStart)
+	cScoreEnd := C.int64_t(scoreEnd)
+
+	ret := C.ldb_zcount(manager.context, csKey, C.size_t(len(key)), cScoreStart, cScoreEnd, &cCount)
+
+	return int(ret), uint64(cCount)
+}
+
+func (manager *LdbManager) ZCard(key string) (int, uint64) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	cSize := C.uint64_t(0)
+
+	ret := C.ldb_zcard(manager.context, csKey, C.size_t(len(key)), &cSize)
+
+	return int(ret), uint64(cSize)
+}
+
+func (manager *LdbManager) ZScore(key string, value StorageValueData) (int, int64) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+	csValue := C.CString(value.Value)
+
+	defer C.free(unsafe.Pointer(csKey))
+	defer C.free(unsafe.Pointer(csValue))
+
+	cScore := C.int64_t(0)
+
+	ret := C.ldb_zscore(manager.context, csKey, C.size_t(len(key)), csValue, C.size_t(len(value.Value)), &cScore)
+
+	return int(ret), int64(cScore)
+}
+
+func (manager *LdbManager) ZRange(key string, start, end, withscore int) (int, []StorageByteValueData, []int64) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+	defer C.free(unsafe.Pointer(csKey))
+
+	var valueItems *C.value_item_t
+	valueItems = (*C.value_item_t)(CNULL)
+	var scoreItems *C.int64_t
+	scoreItems = (*C.int64_t)(CNULL)
+
+	cStart := C.int(start)
+	cEnd := C.int(end)
+	cWithscore := C.int(withscore)
+	cScoreSize := C.size_t(0)
+	cSize := C.size_t(0)
+	cReverse := C.int(0)
+
+	// get range
+	ret := C.ldb_zrange_by_rank(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		cStart,
+		cEnd,
+		&valueItems,
+		&cSize,
+		&scoreItems,
+		&cScoreSize,
+		cReverse,
+		cWithscore)
+	iRet := int(ret)
+
+	var values []StorageByteValueData
+	var scores []int64
+
+	if iRet == 0 {
+		values = make([]StorageByteValueData, int(cSize))
+		scores = make([]int64, int(cScoreSize))
+		for i := 0; i < int(cSize); i += 1 {
+			ConvertCValueItemPointer2GoByte(valueItems, i, &values[i])
+			if withscore == 1 {
+				ConvertCInt64Pointer2Go(scoreItems, i, &scores[i])
+			}
+		}
+	}
+
+	FreeValueItems(valueItems, cSize)
+
+	if unsafe.Pointer(scoreItems) != CNULL {
+		C.free(unsafe.Pointer(scoreItems))
+	}
+
+	return iRet, values, scores
+}
+
+func (manager *LdbManager) ZRevrange(key string, start, end, withscore int) (int, []StorageByteValueData, []int64) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	var valueItems *C.value_item_t
+	valueItems = (*C.value_item_t)(CNULL)
+	var scoreItems *C.int64_t
+	scoreItems = (*C.int64_t)(CNULL)
+
+	cStart := C.int(start)
+	cEnd := C.int(end)
+	cWithscore := C.int(withscore)
+	cScoreSize := C.size_t(0)
+	cSize := C.size_t(0)
+	cReverse := C.int(1)
+
+	// get range
+	ret := C.ldb_zrange_by_rank(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		cStart,
+		cEnd,
+		&valueItems,
+		&cSize,
+		&scoreItems,
+		&cScoreSize,
+		cReverse,
+		cWithscore)
+	iRet := int(ret)
+
+	var values []StorageByteValueData
+	var scores []int64
+
+	if iRet == 0 {
+		values = make([]StorageByteValueData, int(cSize))
+		scores = make([]int64, int(cScoreSize))
+		for i := 0; i < int(cSize); i += 1 {
+			ConvertCValueItemPointer2GoByte(valueItems, i, &values[i])
+			if withscore == 1 {
+				ConvertCInt64Pointer2Go(scoreItems, i, &scores[i])
+			}
+		}
+	}
+
+	FreeValueItems(valueItems, cSize)
+
+	if unsafe.Pointer(scoreItems) != CNULL {
+		C.free(unsafe.Pointer(scoreItems))
+	}
+
+	return iRet, values, scores
+}
+
+func (manager *LdbManager) ZRangeByScore(key string, min, max string, withscore int, reverse int) (int, []StorageByteValueData, []int64) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	var valueItems *C.value_item_t
+	valueItems = (*C.value_item_t)(CNULL)
+	var scoreItems *C.int64_t
+	scoreItems = (*C.int64_t)(CNULL)
+
+	var scoreStart int64
+	var scoreEnd int64
+	var err error
+	scoreStart, err = strconv.ParseInt(min, 10, 64)
+	if err != nil {
+		return STORAGE_ERR, nil, nil
+	}
+	scoreEnd, err = strconv.ParseInt(max, 10, 64)
+	if err != nil {
+		return STORAGE_ERR, nil, nil
+	}
+	cScoreStart := C.int64_t(scoreStart)
+	cScoreEnd := C.int64_t(scoreEnd)
+
+	cWithScore := C.int(withscore)
+	cReverse := C.int(reverse)
+	cScoreSize := C.size_t(0)
+	cSize := C.size_t(0)
+
+	// get range by score
+	ret := C.ldb_zrange_by_score(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		cScoreStart,
+		cScoreEnd,
+		&valueItems,
+		&cSize,
+		&scoreItems,
+		&cScoreSize,
+		cReverse,
+		cWithScore)
+
+	iRet := int(ret)
+
+	var values []StorageByteValueData
+	var scores []int64
+
+	if iRet == 0 {
+		values = make([]StorageByteValueData, int(cSize))
+		scores = make([]int64, int(cScoreSize))
+		for i := 0; i < int(cSize); i += 1 {
+			ConvertCValueItemPointer2GoByte(valueItems, i, &values[i])
+			if withscore == 1 {
+				ConvertCInt64Pointer2Go(scoreItems, i, &scores[i])
+			}
+		}
+	}
+
+	FreeValueItems(valueItems, cSize)
+
+	if unsafe.Pointer(scoreItems) != CNULL {
+		C.free(unsafe.Pointer(scoreItems))
+	}
+
+	return iRet, values, scores
+}
+
+func (manager *LdbManager) ZRemRangeByScore(key string, min, max string, version StorageVersionType, meta StorageMetaData) (int, uint64) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	var scoreStart int64
+	var scoreEnd int64
+	var err error
+	scoreStart, err = strconv.ParseInt(min, 10, 64)
+	if err != nil {
+		return STORAGE_ERR, 0
+	}
+	scoreEnd, err = strconv.ParseInt(max, 10, 64)
+	if err != nil {
+		return STORAGE_ERR, 0
+	}
+
+	cScoreStart := C.int64_t(scoreStart)
+	cScoreEnd := C.int64_t(scoreEnd)
+
+	deleted := C.uint64_t(0)
+
+	ret := C.ldb_zrem_by_score(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		C.uint64_t(version),
+		C.int(meta.Versioncare),
+		cScoreStart,
+		cScoreEnd,
+		&deleted)
+	iRet := int(ret)
+
+	return iRet, uint64(deleted)
+}
+
+func (manager *LdbManager) ZRank(key string, value StorageValueData) (int, uint64) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+	csValue := C.CString(value.Value)
+
+	defer C.free(unsafe.Pointer(csKey))
+	defer C.free(unsafe.Pointer(csValue))
+
+	cRank := C.uint64_t(0)
+	cReverse := C.int(0)
+
+	ret := C.ldb_zrank(manager.context, csKey, C.size_t(len(key)), csValue, C.size_t(len(value.Value)), cReverse, &cRank)
+
+	return int(ret), uint64(cRank)
+}
+
+func (manager *LdbManager) ZRevRank(key string, value StorageValueData) (int, uint64) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+	csValue := C.CString(value.Value)
+
+	defer C.free(unsafe.Pointer(csKey))
+	defer C.free(unsafe.Pointer(csValue))
+
+	cRank := C.uint64_t(0)
+	cReverse := C.int(1)
+
+	ret := C.ldb_zrank(manager.context, csKey, C.size_t(len(key)), csValue, C.size_t(len(value.Value)), cReverse, &cRank)
+
+	return int(ret), uint64(cRank)
 }

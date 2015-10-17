@@ -1018,19 +1018,18 @@ int ldb_zadd(ldb_context_t* context,
              size_t namelen,
              uint64_t lastver,
              int vercare,
-             long exptime,
              value_item_t* keys,
              int64_t* scores,
              size_t keynum,
-             int** retvals){
+             int** results){
   int retval = 0;
   ldb_slice_t *slice_name = ldb_slice_create(name, namelen);
-  *retvals = (int*)lmalloc(sizeof(int) * keynum);
+  *results = (int*)lmalloc(sizeof(int) * keynum);
   size_t now = 0; 
   while(now < keynum){
     ldb_meta_t *meta = ldb_meta_create(vercare, lastver, keys[now].version_);
     ldb_slice_t *slice_key = ldb_slice_create(keys[now].data_, keys[now].data_len_);
-    (*retvals)[now] = zset_add(context, slice_name, slice_key, meta, scores[now]);
+    (*results)[now] = zset_add(context, slice_name, slice_key, meta, scores[now]);
     ldb_meta_destroy(meta);
     ldb_slice_destroy(slice_key);
     ++now;
@@ -1107,7 +1106,6 @@ int ldb_zrem(ldb_context_t* context,
              size_t namelen,
              uint64_t lastver,
              int vercare,
-             long exptime,
              value_item_t* items,
              size_t itemnum,
              int** retvals){
@@ -1133,7 +1131,6 @@ int ldb_zrem_by_rank(ldb_context_t* context,
                      size_t namelen,
                      uint64_t nextver,
                      int vercare,
-                     long exptime,
                      int rank_start,
                      int rank_end,
                      uint64_t* deleted){
@@ -1153,7 +1150,6 @@ int ldb_zrem_by_score(ldb_context_t* context,
                       size_t namelen,
                       uint64_t nextver,
                       int vercare,
-                      long exptime,
                       int64_t score_start,
                       int64_t score_end,
                       uint64_t* deleted){
