@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 
 struct ldb_expiration_t {
     ldb_kv_iterator_t *iter_;
@@ -64,12 +65,18 @@ int ldb_expiration_exp(ldb_expiration_t* expiration, ldb_slice_t **pslice, uint6
         goto end;
     }
     uint8_t type = leveldb_decode_fixed8(val);
+    uint64_t now = time_ms();
     if(type & LDB_VALUE_TYPE_VAL){
         if(type & LDB_VALUE_TYPE_EXP){
+            *expire = leveldb_decode_fixed64(val + LDB_VAL_META_SIZE);
+            if(*expire <= now){
+                //log expire timeout
+                retval = -1;
+                goto end;
+            }
             size_t klen = 0;
             const char* key = ldb_kv_iterator_key_raw(expiration->iter_, &klen);
             *pslice = ldb_slice_create(key, klen);
-            *expire = leveldb_decode_fixed64(val + LDB_VAL_META_SIZE);
             retval = 0;
             goto end;
         }
@@ -85,6 +92,8 @@ int ldb_expiration_exp_batch(ldb_expiration_t* expiration, ldb_list_t** plist, s
 
 
     if(check_expiration_valid(expiration)){
+        printf("expiration is not valid because it is not starting from TYPE_KV\n");
+        //log expiration
         retval = -1; 
         goto end;
     }
@@ -102,8 +111,9 @@ int ldb_expiration_exp_batch(ldb_expiration_t* expiration, ldb_list_t** plist, s
             --limit;
         }
         if(ldb_expiration_next(expiration)<0){
-            //iterator come to the end
-            retval = 1;
+            printf("iterator come to the end\n");
+            //log iterator
+            retval = -1;
             goto end;
         }
     } 

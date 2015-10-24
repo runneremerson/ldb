@@ -3,8 +3,9 @@ package ldb
 /*
 #cgo linux CFLAGS: -std=gnu99 -W -I/usr/local/include -I../ -DUSE_TCMALLOC=1 -DUSE_INT=1
 #cgo  LDFLAGS:	-L/usr/local/lib  -lleveldb-ldb -ltcmalloc
-#include "ldb_context.h"
 #include "ldb_session.h"
+#include "ldb_context.h"
+#include "ldb_expiration.h"
 */
 import "C"
 
@@ -189,6 +190,9 @@ func (manager *LdbManager) InitDB(file_path string, cache_size int, write_buffer
 	KEY_LOCK_NUM = 64
 	manager.ldbKeyLock = make([]sync.RWMutex, KEY_LOCK_NUM)
 	manager.inited = true
+
+	go manager.CleanExpiredData()
+
 	return 0
 }
 
@@ -206,6 +210,33 @@ func (manager *LdbManager) SetExceptionTrace(programName string) {
 	defer C.free(unsafe.Pointer(cName))
 
 	C.set_ldb_signal_handler(cName)
+}
+
+func (manager *LdbManager) CleanExpiredData() {
+	for {
+		expiration := (*C.ldb_expiration_t)(CNULL)
+		for {
+			valueItems := (*C.value_item_t)(CNULL)
+			cSize := C.size_t(0)
+			ret := C.ldb_fetch_expire(manager.context, &expiration, &valueItems, &cSize)
+			if int(ret) < 0 || int(cSize) == 0 {
+				break
+			}
+			keys := make([]string, int(cSize))
+			versions := make([]StorageVersionType, int(cSize))
+			version := uint64((time.Now().UnixNano() / 1000) << 8)
+			for i := 0; i < int(cSize); i++ {
+				var value StorageByteValueData
+				ConvertCValueItemPointer2GoByte(valueItems, i, &value)
+				keys[i] = string(value.Value)
+				versions[i] = StorageVersionType(version)
+			}
+			meta := DefaultMetaData()
+			manager.Del(keys, versions, meta)
+
+			time.Sleep(time.Duration(50) * time.Millisecond)
+		}
+	}
 }
 
 func (manager *LdbManager) Expire(key string, seconds uint32, version StorageVersionType) int {

@@ -120,8 +120,8 @@ int ldb_fetch_expire(ldb_context_t* context, ldb_expiration_t** expiration, valu
         ldb_slice_t *key = (ldb_slice_t*)node->data_;
         uint64_t expire = node->value_;
         decode_slice_expire(key, expire, &((*items)[now]));
+        ++now;
     }
-
 
 end:
     ldb_list_destroy(expire_list);
