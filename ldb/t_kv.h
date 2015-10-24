@@ -7,6 +7,12 @@
 #include "ldb_meta.h"
 #include "ldb_list.h"
 
+
+void encode_kv_key(const char* key, size_t keylen, const ldb_meta_t* meta, ldb_slice_t** pslice);
+
+int decode_kv_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice);
+
+
 int string_set(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta); 
 
 int string_setnx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta);

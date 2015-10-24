@@ -669,5 +669,9 @@ static int hscan(ldb_context_t* context, const ldb_slice_t* name,
                     &slice_end);
     *piterator = ldb_hash_iterator_create(context, name, slice_start, slice_end, limit, BACKWARD);
   }
+
+end:
+  ldb_slice_destroy(slice_start);
+  ldb_slice_destroy(slice_end);
   return 0;
 }

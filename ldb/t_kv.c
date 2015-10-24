@@ -15,14 +15,14 @@
 
 
 
-static void encode_kv_key(const char* key, size_t keylen, const ldb_meta_t* meta, ldb_slice_t** pslice){
+void encode_kv_key(const char* key, size_t keylen, const ldb_meta_t* meta, ldb_slice_t** pslice){
   ldb_slice_t* slice = ldb_meta_slice_create(meta);
   ldb_slice_push_back(slice, LDB_DATA_TYPE_KV, strlen(LDB_DATA_TYPE_KV));
   ldb_slice_push_back(slice, key, keylen);
   *pslice =  slice;
 }
 
-static int decode_kv_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice){
+int decode_kv_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice){
   int retval = 0;
   ldb_bytes_t* bytes = ldb_bytes_create(ldbkey, ldbkeylen);
   if(ldb_bytes_skip(bytes, strlen(LDB_DATA_TYPE_KV)) == -1 ){

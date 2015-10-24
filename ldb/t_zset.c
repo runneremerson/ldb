@@ -817,6 +817,8 @@ static ldb_zset_iterator_t* ziterator(ldb_context_t *context, const ldb_slice_t 
     ldb_zset_iterator_t* iterator = ldb_zset_iterator_create(context, name,  key_start, key_end, limit, direction);
 
 end:
+    ldb_slice_destroy(key_start);
+    ldb_slice_destroy(key_end);
     return iterator;
 }
 
