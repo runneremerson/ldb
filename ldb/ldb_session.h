@@ -2,18 +2,19 @@
 #define LDB_SESSION_H
 
 #include "ldb_context.h"
+#include "ldb_expiration.h"
 
 #include "util/cgo_util_base.h"
-
 
 #include <stdint.h>
 
 
 typedef struct value_item_t{
-  uint64_t version_;
-  size_t data_len_;
-  char* data_;
+    uint64_t version_;
+    size_t data_len_;
+    char* data_;
 } value_item_t;
+
 
 void fill_value_item(value_item_t* item, uint64_t version, const char* data, size_t size);
 
@@ -24,10 +25,11 @@ void destroy_value_item_array( value_item_t* array, size_t size);
 value_item_t* create_value_item_array( size_t size);
 
 
-
 int set_ldb_signal_handler(const char* name);
 
 
+//expire
+int ldb_fetch_expire(ldb_context_t* context, ldb_expiration_t** expiration, value_item_t** items, size_t* itemnum);
 
 //string
 int ldb_set(ldb_context_t* context,

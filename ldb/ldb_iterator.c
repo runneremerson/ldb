@@ -386,8 +386,16 @@ void ldb_kv_iterator_val(const ldb_kv_iterator_t *iterator, ldb_slice_t **pslice
     *pslice = ldb_slice_create(val, vlen); 
 }
 
+const char* ldb_kv_iterator_val_raw(const ldb_kv_iterator_t *iterator, size_t* vlen){
+   return leveldb_iter_value(iterator->iterator_, vlen); 
+}
+
 void ldb_kv_iterator_key(const ldb_kv_iterator_t *iterator, ldb_slice_t **pslice){
     size_t klen = 0;
     const char *key = leveldb_iter_key(iterator->iterator_, &klen);
     *pslice = ldb_slice_create(key, klen); 
+}
+
+const char* ldb_kv_iterator_key_raw(const ldb_kv_iterator_t *iterator, size_t* klen){
+    return leveldb_iter_key(iterator->iterator_, klen);
 }

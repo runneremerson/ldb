@@ -4,6 +4,8 @@
 #include "ldb_meta.h"
 #include "ldb_define.h"
 #include "ldb_list.h"
+#include "ldb_expiration.h"
+
 #include "trace.h"
 #include "config.h"
 #include "lmalloc.h"
@@ -83,6 +85,12 @@ static char* malloc_and_copy(const char* data, size_t size){
   return result;
 }
 
+
+int ldb_fetch_expire(ldb_context_t* context, ldb_expiration_t** expiration, value_item_t** items, size_t* itemnum){
+  int retval = 0;
+end:
+  return retval;
+}
 
 
 int ldb_set(ldb_context_t* context, 

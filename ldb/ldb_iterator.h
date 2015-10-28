@@ -56,5 +56,9 @@ void ldb_kv_iterator_val(const ldb_kv_iterator_t *iterator, ldb_slice_t **pslice
 
 void ldb_kv_iterator_key(const ldb_kv_iterator_t *iterator, ldb_slice_t **pslice); 
 
+const char* ldb_kv_iterator_val_raw(const ldb_kv_iterator_t *iterator, size_t* vlen);
+
+const char* ldb_kv_iterator_key_raw(const ldb_kv_iterator_t *iterator, size_t* klen);
+
 #endif //LDB_ITERATOR_H
 

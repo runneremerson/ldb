@@ -42,3 +42,11 @@ int ldb_expiration_next( ldb_expiration_t* expiration ){
     }
     return 0;
 }
+
+int ldb_expiration_exp(ldb_expiration_t* expiration, ldb_slice_t **pslice, uint64_t* expire){
+    int retval = 0;
+    size_t vlen = 0;
+    const char* val = ldb_kv_iterator_val_raw( expiration->iter_, &vlen); 
+
+    return retval; 
+}
