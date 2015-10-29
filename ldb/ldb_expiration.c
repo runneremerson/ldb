@@ -2,13 +2,16 @@
 #include "ldb_slice.h"
 #include "ldb_iterator.h"
 #include "ldb_define.h"
+#include "ldb_list.h"
 
 #include "lmalloc.h"
+#include "util.h"
 
 
 #include <leveldb-ldb/c.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 struct ldb_expiration_t {
     ldb_kv_iterator_t *iter_;
@@ -35,6 +38,15 @@ void ldb_expiration_destroy( ldb_expiration_t* expiration ){
     lfree(expiration); 
 }
 
+static int check_expiration_valid( ldb_expiration_t* expiration){
+    size_t klen = 0;
+    const char* key = ldb_kv_iterator_key_raw(expiration->iter_, &klen);
+    if(compare_with_length(key, strlen(LDB_DATA_TYPE_KV), LDB_DATA_TYPE_KV, strlen(LDB_DATA_TYPE_KV))==0){
+        return 1;
+    }
+    return 0;
+}
+
 int ldb_expiration_next( ldb_expiration_t* expiration ){
     int retval = ldb_kv_iterator_next(expiration->iter_);
     if(retval<0){
@@ -47,6 +59,55 @@ int ldb_expiration_exp(ldb_expiration_t* expiration, ldb_slice_t **pslice, uint6
     int retval = 0;
     size_t vlen = 0;
     const char* val = ldb_kv_iterator_val_raw( expiration->iter_, &vlen); 
+    if(vlen < LDB_VAL_META_SIZE){
+        retval = -1; 
+        goto end;
+    }
+    uint8_t type = leveldb_decode_fixed8(val);
+    if(type & LDB_VALUE_TYPE_VAL){
+        if(type & LDB_VALUE_TYPE_EXP){
+            size_t klen = 0;
+            const char* key = ldb_kv_iterator_key_raw(expiration->iter_, &klen);
+            *pslice = ldb_slice_create(key, klen);
+            *expire = leveldb_decode_fixed64(val + LDB_VAL_META_SIZE);
+            retval = 0;
+            goto end;
+        }
+    }
+    retval = -1;
 
+end:
     return retval; 
+}
+
+int ldb_expiration_exp_batch(ldb_expiration_t* expiration, ldb_list_t** plist, size_t limit){
+    int retval = 0;
+
+
+    if(check_expiration_valid(expiration)){
+        retval = -1; 
+        goto end;
+    }
+    *plist = ldb_list_create();
+
+    while(limit >0){
+        ldb_list_node_t* node = ldb_list_node_create();
+        ldb_slice_t* key = NULL;
+        uint64_t expire = 0;
+        if( ldb_expiration_exp(expiration, &key, &expire) == 0){
+            node->data_     = key; 
+            node->value_    = expire;
+            node->type_     = LDB_LIST_NODE_TYPE_SLICE;
+            rpush_ldb_list_node(*plist, node);
+            --limit;
+        }
+        if(ldb_expiration_next(expiration)<0){
+            //iterator come to the end
+            retval = 1;
+            goto end;
+        }
+    } 
+
+end:
+    return retval;
 }
