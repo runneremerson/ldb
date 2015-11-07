@@ -120,7 +120,7 @@ void MemTable::Add(SequenceNumber s, ValueType type,
       uint64_t nextversion = DecodeFixed64(key.data() + sizeof(uint32_t) + sizeof(uint64_t));
       uint64_t expiration = DecodeFixed64(key.data() + sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t));
       if(expiration > 0){
-        val_type = ValueType(val_type & kTypeExpiration);
+        val_type = ValueType(val_type | kTypeExpiration);
         val_size += 8;
       }
 
@@ -138,7 +138,7 @@ void MemTable::Add(SequenceNumber s, ValueType type,
 
       //encode value
       p = EncodeVarint32(p, val_size);
-      EncodeFixed8(p, type);
+      EncodeFixed8(p, val_type);
       p += 1;
       EncodeFixed64(p, nextversion);
       p += 8;
@@ -151,11 +151,12 @@ void MemTable::Add(SequenceNumber s, ValueType type,
 
       uint64_t currversion = 0;
       if(met_!=NULL && nextversion>0){
-          uint32_t crc32value = crc32c::Value(key.data(), key.size());
+          Slice mat_key(key.data()+mat_size, key.size()-mat_size);
+          uint32_t crc32value = crc32c::Value(mat_key.data(), mat_key.size());
           mutexs_[crc32value%kNumKeyMutexs]->Lock();
           if(!versioncare){
-              if(!met_->Query(crc32value, key, &currversion) || currversion<nextversion){
-                  met_->Insert(crc32value, key, nextversion);
+              if(!met_->Query(crc32value, mat_key, &currversion) || currversion<nextversion){
+                  met_->Insert(crc32value, mat_key, nextversion);
                   table_.Insert(buf);
               }
           }else{
@@ -181,7 +182,8 @@ void MemTable::Add(SequenceNumber s, ValueType type,
       uint64_t lastversion = DecodeFixed64(key.data() + sizeof(uint32_t));
       uint64_t nextversion = DecodeFixed64(key.data() + sizeof(uint32_t) + sizeof(uint64_t));
       if(nextversion >0){
-          type = kTypeValue;
+        type = kTypeValue;
+        val_type = ValueType(type | kTypeLater);
       }
 
       //encode key
@@ -204,9 +206,10 @@ void MemTable::Add(SequenceNumber s, ValueType type,
       memcpy(p, value.data(), value.size());
       assert((p + value.size()) - buf == encoded_len);
       if(met_ !=NULL && type == kTypeValue){
-          uint32_t crc32value = crc32c::Value(key.data(), key.size());
+          Slice mat_key(key.data()+mat_size, key.size()-mat_size);
+          uint32_t crc32value = crc32c::Value(mat_key.data(), mat_key.size());
           mutexs_[crc32value%kNumKeyMutexs]->Lock();
-          if(met_->Remove(crc32value, key, nextversion)){
+          if(met_->Remove(crc32value, mat_key, nextversion)){
             table_.Insert(buf);
           }
           mutexs_[crc32value%kNumKeyMutexs]->Unlock();

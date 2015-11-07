@@ -51,7 +51,7 @@ class MetTable {
   ~MetTable();  // Private since only Unref() should be used to delete it
 
   struct KeyBucket{
-    KeyBucket();
+    KeyBucket(const int id);
     void Insert(const std::string& key, uint64_t version);
     bool Remove(const std::string& key, uint64_t version);
     bool Query(const std::string& key, uint64_t* version);
@@ -59,6 +59,7 @@ class MetTable {
     std::tr1::unordered_map<std::string, uint64_t> keys_;
     std::tr1::unordered_map<std::string, uint64_t> dels_;
     port::Mutex mutex_;
+    int id_;
     size_t memory_usage_;
   };
   typedef std::vector<KeyBucket*>   Buckets;

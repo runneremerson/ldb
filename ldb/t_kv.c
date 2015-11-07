@@ -326,6 +326,10 @@ int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pva
     assert(vallen>= LDB_VAL_META_SIZE);
     uint8_t type = leveldb_decode_fixed8(val);
     if(type & LDB_VALUE_TYPE_VAL){
+      if(type & LDB_VALUE_TYPE_LAT){
+        retval = LDB_OK_NOT_EXIST;
+        goto end;
+      }
       uint64_t version = leveldb_decode_fixed64(val + LDB_VAL_TYPE_SIZE);
       uint64_t exptime = 0;
       if(type & LDB_VALUE_TYPE_EXP){

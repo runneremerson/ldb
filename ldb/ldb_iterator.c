@@ -399,3 +399,7 @@ void ldb_kv_iterator_key(const ldb_kv_iterator_t *iterator, ldb_slice_t **pslice
 const char* ldb_kv_iterator_key_raw(const ldb_kv_iterator_t *iterator, size_t* klen){
     return leveldb_iter_key(iterator->iterator_, klen);
 }
+
+int ldb_kv_iterator_valid(const ldb_kv_iterator_t *iterator){
+    return leveldb_iter_valid(iterator->iterator_); 
+}

@@ -1,8 +1,8 @@
 package ldb
 
 /*
-#cgo linux CFLAGS: -std=gnu99 -W -I/usr/local/include -I../ -DUSE_TCMALLOC=1 -DUSE_INT=1
-#cgo  LDFLAGS:	-L/usr/local/lib  -lleveldb-ldb -ltcmalloc
+#cgo  linux CFLAGS: -std=gnu99 -W -I/usr/local/include -I../ -DUSE_TCMALLOC=1 -DUSE_INT=1
+#cgo  LDFLAGS:	 -L/usr/local/lib  -lleveldb-ldb -ltcmalloc
 #include "ldb_session.h"
 #include "ldb_context.h"
 #include "ldb_expiration.h"
@@ -191,7 +191,7 @@ func (manager *LdbManager) InitDB(file_path string, cache_size int, write_buffer
 	manager.ldbKeyLock = make([]sync.RWMutex, KEY_LOCK_NUM)
 	manager.inited = true
 
-	go manager.CleanExpiredData()
+	//go manager.CleanExpiredData()
 
 	return 0
 }
@@ -234,7 +234,7 @@ func (manager *LdbManager) CleanExpiredData() {
 			meta := DefaultMetaData()
 			manager.Del(keys, versions, meta)
 
-			time.Sleep(time.Duration(50) * time.Millisecond)
+			time.Sleep(time.Duration(500) * time.Millisecond)
 		}
 	}
 }

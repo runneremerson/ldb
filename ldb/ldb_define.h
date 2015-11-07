@@ -1,9 +1,10 @@
-#ifndef LDB_LEVELDB_DEFINE_H
-#define LDB_LEVELDB_DEFINE_H
+#ifndef LDB_DEFINE_H
+#define LDB_DEFINE_H
 
 #define LDB_VALUE_TYPE_DEL                   0x0
 #define LDB_VALUE_TYPE_VAL                   0x1
 #define LDB_VALUE_TYPE_EXP                   0x2
+#define LDB_VALUE_TYPE_LAT                   0x4
 
 #define LDB_KEY_META_SIZE                    28
 #define LDB_VAL_META_SIZE                    9
@@ -63,5 +64,6 @@
 #define LDB_ERR_BUCKETID                    -25
 #define LDB_ERR_NOT_SET_EXPIRE              -26
 
-#endif //LDB_LEVELDB_DEFINE_H
+
+#endif //LDB_DEFINE_H
 

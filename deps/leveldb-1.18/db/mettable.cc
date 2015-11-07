@@ -19,7 +19,7 @@ const int kNumKeyBuckets = 1024;
 MetTable::MetTable()
     : refs_(0) {
     for(int i=0; i<kNumKeyBuckets; ++i){
-        buckets_.push_back(new KeyBucket);
+        buckets_.push_back(new KeyBucket(i));
     }
 }
 
@@ -52,8 +52,8 @@ size_t MetTable::ApproximateMemoryUsage(){
   return ret; 
 }
 
-MetTable::KeyBucket::KeyBucket()
-    : memory_usage_(0) {
+MetTable::KeyBucket::KeyBucket(const int id)
+    :id_(id),memory_usage_(0) {
 }
 
 
