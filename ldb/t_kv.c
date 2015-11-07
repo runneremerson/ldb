@@ -258,6 +258,8 @@ int string_msetnx(ldb_context_t* context, const ldb_list_t* datalist, const ldb_
       rpush_ldb_list_node(retlist, node); 
       ldb_slice_destroy(slice_value);
       ldb_meta_destroy(old_meta);
+      //skip value node
+      assert(ldb_list_next(&dataiterator)!=NULL);
       continue;
     }
 
@@ -381,8 +383,6 @@ int string_mget(ldb_context_t* context, const ldb_list_t* keylist, ldb_list_t** 
       node_val->type_ = LDB_LIST_NODE_TYPE_NONE;
       node_meta->type_ = LDB_LIST_NODE_TYPE_NONE;
     }
-    ldb_slice_destroy(val);
-    ldb_meta_destroy(meta);
     rpush_ldb_list_node(*pvallist, node_val);
     rpush_ldb_list_node(*pmetalist, node_meta);
   }
