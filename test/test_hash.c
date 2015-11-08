@@ -257,7 +257,6 @@ static void test_hash(ldb_context_t* context){
 
 int main(int argc, char* argv[]){
     ldb_context_t *context = ldb_context_create("/tmp/testhash", 128, 64);
-    ldb_context_create_recovering_snapshot(context);
     ldb_context_release_recovering_snapshot(context);
     assert(context != NULL);
 
