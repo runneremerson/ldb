@@ -24,8 +24,8 @@ ldb_expiration_t* ldb_expiration_create( ldb_context_t* context ){
     ldb_meta_t *meta = ldb_meta_create(0, 0, 0);
     ldb_slice_t *start = ldb_meta_slice_create(meta);
     ldb_slice_t *end = ldb_meta_slice_create(meta);
-    ldb_slice_push_back(start, LDB_DATA_TYPE_KV, strlen(LDB_DATA_TYPE_KV));
-    ldb_slice_push_back(end, LDB_DATA_TYPE_KV, strlen(LDB_DATA_TYPE_KV));
+    ldb_slice_push_back(start, LDB_DATA_TYPE_STRING, strlen(LDB_DATA_TYPE_STRING));
+    ldb_slice_push_back(end, LDB_DATA_TYPE_STRING, strlen(LDB_DATA_TYPE_STRING));
     ldb_slice_push_back(end, "\xff", strlen("\xff"));
     uint64_t limit = 1000*1000*1000;
     expiration->iter_ = ldb_kv_iterator_create(context, start, end, limit, FORWARD);
@@ -50,7 +50,7 @@ static int check_expiration_valid( ldb_expiration_t* expiration){
     }
     size_t klen = 0;
     const char* key = ldb_kv_iterator_key_raw(expiration->iter_, &klen);
-    if(compare_with_length(key, strlen(LDB_DATA_TYPE_KV), LDB_DATA_TYPE_KV, strlen(LDB_DATA_TYPE_KV))==0){
+    if(compare_with_length(key, strlen(LDB_DATA_TYPE_STRING), LDB_DATA_TYPE_STRING, strlen(LDB_DATA_TYPE_STRING))==0){
         return 1;
     }
     return 0;
@@ -100,7 +100,7 @@ int ldb_expiration_exp_batch(ldb_expiration_t* expiration, ldb_list_t** plist, s
 
 
     if(!check_expiration_valid(expiration)){
-        printf("expiration is not valid because it is not starting from TYPE_KV\n");
+        printf("expiration is not valid because it is not starting from TYPE_STRING\n");
         //log expiration
         retval = -1; 
         goto end;

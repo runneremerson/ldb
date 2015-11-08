@@ -4,7 +4,7 @@
 #include "ldb_meta.h"
 #include "ldb_bytes.h"
 #include "ldb_list.h"
-#include "t_kv.h"
+#include "t_string.h"
 #include "util.h"
 
 #include <leveldb/c.h>
@@ -17,7 +17,7 @@
 
 void encode_kv_key(const char* key, size_t keylen, const ldb_meta_t* meta, ldb_slice_t** pslice){
   ldb_slice_t* slice = ldb_meta_slice_create(meta);
-  ldb_slice_push_back(slice, LDB_DATA_TYPE_KV, strlen(LDB_DATA_TYPE_KV));
+  ldb_slice_push_back(slice, LDB_DATA_TYPE_STRING, strlen(LDB_DATA_TYPE_STRING));
   ldb_slice_push_back(slice, key, keylen);
   *pslice =  slice;
 }
@@ -25,7 +25,7 @@ void encode_kv_key(const char* key, size_t keylen, const ldb_meta_t* meta, ldb_s
 int decode_kv_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice){
   int retval = 0;
   ldb_bytes_t* bytes = ldb_bytes_create(ldbkey, ldbkeylen);
-  if(ldb_bytes_skip(bytes, strlen(LDB_DATA_TYPE_KV)) == -1 ){
+  if(ldb_bytes_skip(bytes, strlen(LDB_DATA_TYPE_STRING)) == -1 ){
     goto err;
   }
   ldb_slice_t *slice_key = NULL;

@@ -231,7 +231,7 @@ func (manager *LdbManager) CleanExpiredData() {
 				keys[i] = string(value.Value)
 				versions[i] = StorageVersionType(version)
 			}
-			meta := DefaultMetaData()
+			meta := StorageMetaData{0, STORAGE_VERSION_CARE_CLEAR, 0}
 			manager.Del(keys, versions, meta)
 
 			time.Sleep(time.Duration(500) * time.Millisecond)

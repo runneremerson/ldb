@@ -5,7 +5,7 @@
 
 #include "t_zset.h"
 #include "t_hash.h"
-#include "t_kv.h"
+#include "t_string.h"
 
 #include <leveldb/c.h>
 #include <string.h>
@@ -293,8 +293,8 @@ void ldb_hash_iterator_key(const ldb_hash_iterator_t *iterator, ldb_slice_t **ps
     *pslice = ldb_slice_create(key, klen);
 }
 
-ldb_kv_iterator_t* ldb_kv_iterator_create(ldb_context_t *context, ldb_slice_t *start, ldb_slice_t *end, uint64_t limit, int direction){ 
-    ldb_kv_iterator_t *iterator = (ldb_kv_iterator_t*)lmalloc(sizeof(ldb_kv_iterator_t));
+ldb_string_iterator_t* ldb_string_iterator_create(ldb_context_t *context, ldb_slice_t *start, ldb_slice_t *end, uint64_t limit, int direction){ 
+    ldb_string_iterator_t *iterator = (ldb_string_iterator_t*)lmalloc(sizeof(ldb_string_iterator_t));
     iterator->name_ = NULL;
     iterator->end_ = ldb_slice_create(ldb_slice_data(end) + LDB_KEY_META_SIZE, ldb_slice_size(end) - LDB_KEY_META_SIZE);
     iterator->direction_ = direction;
@@ -323,7 +323,7 @@ ldb_kv_iterator_t* ldb_kv_iterator_create(ldb_context_t *context, ldb_slice_t *s
 }
 
 
-void ldb_kv_iterator_destroy(ldb_kv_iterator_t* iterator){
+void ldb_string_iterator_destroy(ldb_string_iterator_t* iterator){
     if(iterator!=NULL){
         ldb_slice_destroy(iterator->name_);
         ldb_slice_destroy(iterator->end_);
@@ -333,7 +333,7 @@ void ldb_kv_iterator_destroy(ldb_kv_iterator_t* iterator){
 }
 
 
-int ldb_kv_iterator_next(ldb_kv_iterator_t *iterator){
+int ldb_string_iterator_next(ldb_string_iterator_t *iterator){
     int retval = 0;
 
     while(1){
@@ -384,7 +384,7 @@ int ldb_kv_iterator_next(ldb_kv_iterator_t *iterator){
 
         (iterator->limit_)--;
 
-        if(compare_with_length(key, strlen(LDB_DATA_TYPE_KV), LDB_DATA_TYPE_KV, strlen(LDB_DATA_TYPE_KV))!=0){
+        if(compare_with_length(key, strlen(LDB_DATA_TYPE_STRING), LDB_DATA_TYPE_STRING, strlen(LDB_DATA_TYPE_STRING))!=0){
             retval = -1;
             goto end;
         }
@@ -405,26 +405,26 @@ end:
 }
 
 
-void ldb_kv_iterator_val(const ldb_kv_iterator_t *iterator, ldb_slice_t **pslice){
+void ldb_string_iterator_val(const ldb_string_iterator_t *iterator, ldb_slice_t **pslice){
     size_t vlen = 0;
     const char *val = leveldb_iter_value(iterator->iterator_, &vlen);
     *pslice = ldb_slice_create(val, vlen); 
 }
 
-const char* ldb_kv_iterator_val_raw(const ldb_kv_iterator_t *iterator, size_t* vlen){
+const char* ldb_string_iterator_val_raw(const ldb_string_iterator_t *iterator, size_t* vlen){
    return leveldb_iter_value(iterator->iterator_, vlen); 
 }
 
-void ldb_kv_iterator_key(const ldb_kv_iterator_t *iterator, ldb_slice_t **pslice){
+void ldb_string_iterator_key(const ldb_string_iterator_t *iterator, ldb_slice_t **pslice){
     size_t klen = 0;
     const char *key = leveldb_iter_key(iterator->iterator_, &klen);
     *pslice = ldb_slice_create(key, klen); 
 }
 
-const char* ldb_kv_iterator_key_raw(const ldb_kv_iterator_t *iterator, size_t* klen){
+const char* ldb_string_iterator_key_raw(const ldb_string_iterator_t *iterator, size_t* klen){
     return leveldb_iter_key(iterator->iterator_, klen);
 }
 
-int ldb_kv_iterator_valid(const ldb_kv_iterator_t *iterator){
+int ldb_string_iterator_valid(const ldb_string_iterator_t *iterator){
     return leveldb_iter_valid(iterator->iterator_); 
 }

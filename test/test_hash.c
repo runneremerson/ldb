@@ -91,7 +91,105 @@ static void test_hash(ldb_context_t* context){
     ldb_slice_destroy(slice_key2);
     ldb_slice_destroy(slice_val2);
     ldb_meta_destroy(meta1); 
+
+
+    ldb_list_t *datalist1, *metalist1, *retlist1 = NULL;
+    datalist1 = ldb_list_create();
+    metalist1 = ldb_list_create();
+
+    const char *hash_name3 = "hash_name3";
+    ldb_slice_t *slice_name3 = ldb_slice_create(hash_name3, strlen(hash_name3));
+    const char *hash_key6 = "hash_key6";
+    ldb_slice_t *slice_key6 = ldb_slice_create(hash_key6, strlen(hash_key6));
+    const char *hash_val6 = "hash_val6";
+    ldb_slice_t *slice_val6 = ldb_slice_create(hash_val6, strlen(hash_val6));
+    uint64_t mnextver1 = nextver6 + 100000;
+    ldb_meta_t *meta7 = ldb_meta_create(0, 0, mnextver1);
+
+    ldb_list_node_t *node_key = ldb_list_node_create();
+    node_key->type_ = LDB_LIST_NODE_TYPE_SLICE;
+    node_key->data_ = slice_key6;;
+    rpush_ldb_list_node(datalist1, node_key);
+
+    ldb_list_node_t *node_val = ldb_list_node_create();
+    node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
+    node_val->data_ = slice_val6;
+    rpush_ldb_list_node(datalist1, node_val);
+
+    ldb_list_node_t *node_meta = ldb_list_node_create();
+    node_meta->type_ = LDB_LIST_NODE_TYPE_META;
+    node_meta->data_ = meta7;
+    rpush_ldb_list_node(metalist1, node_meta);
+
+    const char *hash_key7 = "hash_key7";
+    ldb_slice_t *slice_key7 = ldb_slice_create(hash_key7, strlen(hash_key7));
+    const char *hash_val7 = "hash_val7";
+    ldb_slice_t *slice_val7 = ldb_slice_create(hash_val7, strlen(hash_val7));
+    uint64_t mnextver2 = mnextver1 + 100000;
+    ldb_meta_t *meta8 = ldb_meta_create(0, 0, mnextver2);
+
+
+    node_key = ldb_list_node_create();
+    node_key->type_ = LDB_LIST_NODE_TYPE_SLICE;
+    node_key->data_ = slice_key7;;
+    rpush_ldb_list_node(datalist1, node_key);
+
+    node_val = ldb_list_node_create();
+    node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
+    node_val->data_ = slice_val7;
+    rpush_ldb_list_node(datalist1, node_val);
+
+    node_meta = ldb_list_node_create();
+    node_meta->type_ = LDB_LIST_NODE_TYPE_META;
+    node_meta->data_ = meta8;
+    rpush_ldb_list_node(metalist1, node_meta);
+
+    assert(hash_mset(context, slice_name3, datalist1, metalist1, &retlist1) == LDB_OK);
+
+    ldb_list_iterator_t *iterator1 = ldb_list_iterator_create(retlist1);
+    while(1){
+        ldb_list_node_t *node = ldb_list_next(&iterator1);
+        if(node == NULL){
+            break;
+        }
+        printf("hmset reault %d\n", (int)(node->value_));
+    }
+    ldb_list_iterator_destroy(iterator1);
+    ldb_list_destroy(datalist1);
+    ldb_list_destroy(metalist1);
+    ldb_list_destroy(retlist1);
+
+    uint64_t mlength = 0;
+    assert(hash_length(context, slice_name3, &mlength) == LDB_OK);
+    printf("slice_name3 length=%lu\n", mlength);
+    assert(mlength == 2);
+
+
+    ldb_list_t *vallist2, *metalist2, *keylist2 = NULL;
+    keylist2 = ldb_list_create();
+
+    const char *hash_key8 = "hash_key6";
+    ldb_slice_t *slice_key8 = ldb_slice_create(hash_key8, strlen(hash_key8));
+    node_key = ldb_list_node_create();
+    node_key->type_ = LDB_LIST_NODE_TYPE_SLICE;
+    node_key->data_ = slice_key8;
+    rpush_ldb_list_node(keylist2, node_key);
+
+    const char *hash_key9 = "hash_key7";
+    ldb_slice_t *slice_key9 = ldb_slice_create(hash_key9, strlen(hash_key9));
+    node_key = ldb_list_node_create();
+    node_key->type_ = LDB_LIST_NODE_TYPE_SLICE;
+    node_key->data_ = slice_key9;
+    rpush_ldb_list_node(keylist2, node_key);
+
+    assert(hash_mget(context, slice_name3, keylist2, &vallist2, &metalist2) == LDB_OK);
+
+    ldb_list_destroy(vallist2);
+    ldb_list_destroy(keylist2);
+    ldb_list_destroy(metalist2);
 }
+
+
 
 
 

@@ -1,5 +1,5 @@
-#ifndef LDB_T_KV_H
-#define LDB_T_KV_H
+#ifndef LDB_T_STRING_H
+#define LDB_T_STRING_H
 
 
 #include "ldb_context.h"
@@ -37,5 +37,5 @@ int string_incr(ldb_context_t* context, const ldb_slice_t* key, const ldb_meta_t
 
 
 
-#endif //LDB_T_KV_H
+#endif //LDB_T_STRING_H
 

@@ -360,24 +360,19 @@ int hash_mset(ldb_context_t* context, const ldb_slice_t* name, const ldb_list_t*
         }
         //encode key
         ldb_list_node_t* node_meta = ldb_list_next(&metaiterator);
-        ldb_slice_t *slice_key = NULL;
         ldb_slice_t *key = (ldb_slice_t*)(node_key->data_);
         ldb_meta_t *meta = (ldb_meta_t*)(node_meta->data_);
-        encode_hash_key(ldb_slice_data(name), ldb_slice_size(name), ldb_slice_data(key), ldb_slice_size(key), meta, &slice_key);
 
         //put kv
         ldb_list_node_t* node_val = ldb_list_next(&dataiterator);
-        ldb_slice_t *slice_val = (ldb_slice_t*)(node_val->data_);
-        int ret = hash_set(context, name, slice_key, slice_val, meta);
+        ldb_slice_t *val = (ldb_slice_t*)(node_val->data_);
+        int ret = hash_set(context, name, key, val, meta);
 
         //push return value
         ldb_list_node_t* node_ret = ldb_list_node_create();
         node_ret->type_ = LDB_LIST_NODE_TYPE_BASE;
         node_ret->value_ = ret;
         rpush_ldb_list_node(retlist, node_ret); 
-
-        //destroy slice_key
-        ldb_slice_destroy(slice_key);
     }
 
 end:
@@ -534,7 +529,8 @@ static int hset_one(ldb_context_t* context, const ldb_slice_t* name,
     return -1;
   }
   int retval = 0;
-  ldb_slice_t *slice_key,  *slice_val = NULL;
+  ldb_slice_t *slice_key = NULL;
+  ldb_slice_t *slice_val = NULL;
   ldb_meta_t *old_meta = NULL;
   if(hash_get(context, name, key, &slice_val, &old_meta) == LDB_OK_NOT_EXIST){
     encode_hash_key(ldb_slice_data(name),
@@ -549,7 +545,7 @@ static int hset_one(ldb_context_t* context, const ldb_slice_t* name,
                                ldb_slice_size(slice_key),
                                ldb_slice_data(value),
                                ldb_slice_size(value));
-    return 1;
+    retval = 1;
   }else{
     encode_hash_key(ldb_slice_data(name),
                     ldb_slice_size(name),
@@ -564,8 +560,12 @@ static int hset_one(ldb_context_t* context, const ldb_slice_t* name,
                                ldb_slice_data(value),
                                ldb_slice_size(value)); 
 
-    return 0;
+    retval = 0;
   }
+end:
+  ldb_slice_destroy(slice_key);
+  ldb_slice_destroy(slice_val);
+  ldb_meta_destroy(old_meta);
   return retval;
 }
 

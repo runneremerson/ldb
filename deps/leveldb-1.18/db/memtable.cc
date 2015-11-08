@@ -205,7 +205,7 @@ void MemTable::Add(SequenceNumber s, ValueType type,
       p += 8;
       memcpy(p, value.data(), value.size());
       assert((p + value.size()) - buf == encoded_len);
-      if(met_ !=NULL && type == kTypeValue){
+      if(met_ !=NULL){
           Slice mat_key(key.data()+mat_size, key.size()-mat_size);
           uint32_t crc32value = crc32c::Value(mat_key.data(), mat_key.size());
           mutexs_[crc32value%kNumKeyMutexs]->Lock();

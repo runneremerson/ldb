@@ -12,7 +12,7 @@
 #include "util.h"
 #include "util/cgo_util_base.h"
 
-#include "t_kv.h"
+#include "t_string.h"
 #include "t_zset.h"
 #include "t_hash.h"
 

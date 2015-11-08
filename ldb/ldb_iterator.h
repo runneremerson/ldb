@@ -16,7 +16,7 @@ typedef struct ldb_data_iterator_t ldb_zset_iterator_t;
 
 typedef struct ldb_data_iterator_t ldb_hash_iterator_t;
 
-typedef struct ldb_data_iterator_t ldb_kv_iterator_t;
+typedef struct ldb_data_iterator_t ldb_string_iterator_t;
 
 
 ldb_zset_iterator_t* ldb_zset_iterator_create(ldb_context_t *context, const ldb_slice_t *name,
@@ -46,21 +46,21 @@ void ldb_hash_iterator_val(const ldb_hash_iterator_t *iterator, ldb_slice_t **ps
 void ldb_hash_iterator_key(const ldb_hash_iterator_t *iterator, ldb_slice_t **pslice); 
 
 
-ldb_kv_iterator_t* ldb_kv_iterator_create(ldb_context_t *context, ldb_slice_t *start, ldb_slice_t *end, uint64_t limit, int direction);
+ldb_string_iterator_t* ldb_string_iterator_create(ldb_context_t *context, ldb_slice_t *start, ldb_slice_t *end, uint64_t limit, int direction);
 
-void ldb_kv_iterator_destroy(ldb_kv_iterator_t* iterator);
+void ldb_string_iterator_destroy(ldb_string_iterator_t* iterator);
 
-int ldb_kv_iterator_next(ldb_kv_iterator_t *iterator);
+int ldb_string_iterator_next(ldb_string_iterator_t *iterator);
 
-void ldb_kv_iterator_val(const ldb_kv_iterator_t *iterator, ldb_slice_t **pslice);
+void ldb_string_iterator_val(const ldb_string_iterator_t *iterator, ldb_slice_t **pslice);
 
-void ldb_kv_iterator_key(const ldb_kv_iterator_t *iterator, ldb_slice_t **pslice); 
+void ldb_string_iterator_key(const ldb_string_iterator_t *iterator, ldb_slice_t **pslice); 
 
-const char* ldb_kv_iterator_val_raw(const ldb_kv_iterator_t *iterator, size_t* vlen);
+const char* ldb_string_iterator_val_raw(const ldb_string_iterator_t *iterator, size_t* vlen);
 
-const char* ldb_kv_iterator_key_raw(const ldb_kv_iterator_t *iterator, size_t* klen);
+const char* ldb_string_iterator_key_raw(const ldb_string_iterator_t *iterator, size_t* klen);
 
-int ldb_kv_iterator_valid(const ldb_kv_iterator_t *iterator);
+int ldb_string_iterator_valid(const ldb_string_iterator_t *iterator);
 
 #endif //LDB_ITERATOR_H
 
