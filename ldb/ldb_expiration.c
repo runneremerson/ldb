@@ -77,8 +77,8 @@ int ldb_expiration_exp(ldb_expiration_t* expiration, ldb_slice_t **pslice, uint6
     if(type & LDB_VALUE_TYPE_VAL){
         if(type & LDB_VALUE_TYPE_EXP){
             *expire = leveldb_decode_fixed64(val + LDB_VAL_META_SIZE);
-            if(*expire <= now){
-                //log expire timeout
+            if(*expire > now){
+                //log expire not timeout
                 retval = -1;
                 goto end;
             }

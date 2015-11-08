@@ -420,30 +420,29 @@ int hash_length(ldb_context_t* context, const ldb_slice_t* name, uint64_t* lengt
     goto end;
   }
   if(val!=NULL){
-    if(vallen < (sizeof(uint64_t) + LDB_VAL_META_SIZE)){
-      fprintf(stderr, "meta with size=%d, but vall=%ld\n", LDB_VAL_META_SIZE, vallen);  
-      retval = LDB_ERR;
+    assert(vallen >= (sizeof(uint64_t) + LDB_VAL_META_SIZE));
+    uint8_t type = leveldb_decode_fixed8(val);
+    if(type & LDB_VALUE_TYPE_VAL){
+      *length = leveldb_decode_fixed64(val + LDB_VAL_META_SIZE);
+      retval = LDB_OK;
     }else{
-      uint8_t type = leveldb_decode_fixed8(val);
-      if(type == LDB_VALUE_TYPE_VAL){
-        *length = leveldb_decode_fixed64(val + LDB_VAL_META_SIZE);
-        retval = LDB_OK;
-      }else{
-        retval = LDB_OK_NOT_EXIST;
-      }
+      retval = LDB_OK_NOT_EXIST;
     }
-    leveldb_free(val);
   }else{
     retval = LDB_OK_NOT_EXIST;
   }
 
 end:
+  if(val != NULL){
+    leveldb_free(val); 
+  }
   return retval;
 }
 
 int hash_incr(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta, int64_t by, int64_t* val){
   int retval = 0;
-  ldb_slice_t *slice_old_val, *slice_new_val= NULL;
+  ldb_slice_t *slice_old_val = NULL;
+  ldb_slice_t *slice_new_val= NULL;
   ldb_meta_t *old_meta = NULL;
   int64_t old_val = 0;
   int ret = hash_get(context, name, key, &slice_old_val, &old_meta);
@@ -476,7 +475,7 @@ int hash_incr(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t
       goto  end;
     }
     retval = LDB_OK;
-
+    *val = old_val;
   }else{
     retval = LDB_ERR;
   }
@@ -507,6 +506,7 @@ int hash_del(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t*
                 goto  end;
             }
             retval = LDB_OK;
+            goto end;
         }
         retval = LDB_OK_NOT_EXIST;
     }else{
@@ -605,22 +605,25 @@ static int hdel_one(ldb_context_t* context, const ldb_slice_t* name,
 static int hash_incr_size(ldb_context_t* context, const ldb_slice_t* name,
                     int64_t by){
   uint64_t length = 0;
-  if(hash_length(context, name, &length)!=LDB_OK){
+  int retval = hash_length(context, name, &length);
+  if(retval!=LDB_OK && retval != LDB_OK_NOT_EXIST){
     return -1;
   }
-  length += by;
+  int64_t size = (int64_t)length;
+  size += by;
 
   ldb_slice_t* slice_key = NULL;
   encode_hsize_key(ldb_slice_data(name),
                    ldb_slice_size(name),
                    NULL,
                    &slice_key);
-  if(length == 0){
+  if(size <= 0){
     ldb_context_writebatch_delete(context,
                                   ldb_slice_data(slice_key),
                                   ldb_slice_size(slice_key));
   }else{
     char buff[sizeof(uint64_t)] = {0};
+    length = size;
     leveldb_encode_fixed64(buff, length);
     ldb_context_writebatch_put(context,
                                ldb_slice_data(slice_key),

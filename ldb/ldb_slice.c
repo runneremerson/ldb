@@ -31,8 +31,8 @@ ldb_slice_t* ldb_slice_create(const char* data, size_t size){
 void ldb_slice_destroy(ldb_slice_t* slice){
   if(slice!=NULL){
     lfree(slice->data_);
+    lfree(slice);
   }
-  lfree(slice);
 }
 
 static size_t ensure_capacity(size_t size){

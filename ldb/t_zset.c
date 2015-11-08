@@ -243,7 +243,7 @@ int zset_del_range_by_rank(ldb_context_t* context, const ldb_slice_t* name,
   ldb_zset_iterator_t *iterator = NULL;
   uint64_t offset, limit, size = 0;
   retval = zset_size(context, name, &size);
-  if(retval != LDB_OK){
+  if(retval != LDB_OK && retval != LDB_OK_NOT_EXIST){
     goto end;
   }
   if(rank_start < 0){
@@ -429,7 +429,7 @@ int zset_range(ldb_context_t* context, const ldb_slice_t* name,
   int retval = 0;
   uint64_t offset, limit, size = 0;
   retval = zset_size(context, name, &size);
-  if(retval != LDB_OK){
+  if(retval != LDB_OK && retval != LDB_OK_NOT_EXIST){
     goto end;
   }
   if(rank_start < 0){
@@ -604,20 +604,21 @@ int zset_size(ldb_context_t* context, const ldb_slice_t* name,
     goto end;
   }
   if(val != NULL){
-    if(vallen < sizeof(uint64_t) + LDB_VAL_META_SIZE){
-      fprintf(stderr, "zset size with size=%ld, but vall=%ld\n", sizeof(uint64_t), vallen - LDB_VAL_META_SIZE);
-      retval = LDB_ERR;
-    }else{
-      val += LDB_VAL_META_SIZE;
-      *size = leveldb_decode_fixed64(val);
+    assert(vallen >= (sizeof(uint64_t) + LDB_VAL_META_SIZE));
+    uint8_t type = leveldb_decode_fixed8(val);
+    if(type & LDB_VALUE_TYPE_VAL){
+      *size = leveldb_decode_fixed64(val + LDB_VAL_META_SIZE);
       retval = LDB_OK;
+    }else{
+      retval = LDB_OK_NOT_EXIST;
     }
-    leveldb_free(val);
-    goto end;
   }else{
     retval = LDB_OK_NOT_EXIST;
   }
 end:
+  if (val !=NULL){
+    leveldb_free(val);   
+  }
   return retval;
 }
 
@@ -744,8 +745,9 @@ static int zdel_one(ldb_context_t *context, const ldb_slice_t* name,
 
 static int zset_incr_size(ldb_context_t *context, 
                           const ldb_slice_t* name, int64_t by){
-  uint64_t size = 0;
-  zset_size(context, name, &size);
+  uint64_t length = 0;
+  zset_size(context, name, &length);
+  int64_t size = (int64_t)length;
   size += by;
   ldb_slice_t *slice_key = NULL;
 
@@ -753,18 +755,19 @@ static int zset_incr_size(ldb_context_t *context,
                    ldb_slice_size(name),
                    NULL,
                    &slice_key);
-  if(size == 0){
+  if(size <= 0){
     ldb_context_writebatch_delete(context,
                                   ldb_slice_data(slice_key),
                                   ldb_slice_size(slice_key));
   }else{
-    char buf[sizeof(int64_t)] = {0};
-    leveldb_encode_fixed64(buf, size);
+    char buff[sizeof(uint64_t)] = {0};
+    length = size;
+    leveldb_encode_fixed64(buff, length);
     ldb_context_writebatch_put(context,
                                ldb_slice_data(slice_key),
                                ldb_slice_size(slice_key),
-                               buf,
-                               sizeof(int64_t));
+                               buff,
+                               sizeof(uint64_t));
   } 
   return 0;
 }

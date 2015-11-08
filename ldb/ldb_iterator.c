@@ -9,6 +9,7 @@
 
 #include <leveldb-ldb/c.h>
 #include <string.h>
+#include <assert.h>
 
 struct ldb_data_iterator_t {
     ldb_slice_t *name_;
@@ -76,6 +77,14 @@ int ldb_zset_iterator_next(ldb_zset_iterator_t *iterator){
             iterator->limit_ = 0;
             retval = -1;
             goto end;
+        }
+
+        size_t vlen = 0;
+        const char *val = leveldb_iter_value(iterator->iterator_, &vlen);
+        assert(vlen > LDB_VAL_META_SIZE);
+        uint8_t type = leveldb_decode_fixed8(val);
+        if(type & LDB_VALUE_TYPE_LAT){
+            continue;
         }
 
         size_t klen = 0;
@@ -216,6 +225,14 @@ int ldb_hash_iterator_next(ldb_hash_iterator_t *iterator){
             goto end;
         }
 
+        size_t vlen = 0;
+        const char *val = leveldb_iter_value(iterator->iterator_, &vlen);
+        assert(vlen > LDB_VAL_META_SIZE);
+        uint8_t type = leveldb_decode_fixed8(val);
+        if(type & LDB_VALUE_TYPE_LAT){
+            continue;
+        }
+
         size_t klen = 0;
         const char *key = leveldb_iter_key(iterator->iterator_, &klen);
         if(iterator->direction_ == FORWARD){
@@ -335,6 +352,14 @@ int ldb_kv_iterator_next(ldb_kv_iterator_t *iterator){
             iterator->limit_ = 0;
             retval = -1;
             goto end;
+        }
+
+        size_t vlen = 0;
+        const char *val = leveldb_iter_value(iterator->iterator_, &vlen);
+        assert(vlen > LDB_VAL_META_SIZE);
+        uint8_t type = leveldb_decode_fixed8(val);
+        if(type & LDB_VALUE_TYPE_LAT){
+            continue;
         }
 
         size_t klen = 0;
