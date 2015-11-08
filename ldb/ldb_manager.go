@@ -1,8 +1,8 @@
 package ldb
 
 /*
-#cgo  linux CFLAGS: -std=gnu99 -W -I/usr/local/include -I../ -DUSE_TCMALLOC=1 -DUSE_INT=1
-#cgo  LDFLAGS:	 -L/usr/local/lib  -lleveldb-ldb -ltcmalloc
+#cgo  linux CFLAGS: -std=gnu99 -W -I/usr/local/include -I../ -I../deps/leveldb-1.18/include -DUSE_TCMALLOC=1 -DUSE_INT=1
+#cgo  LDFLAGS:	 -L/usr/local/lib  -L../deps/leveldb-1.18 -lleveldb -ltcmalloc
 #include "ldb_session.h"
 #include "ldb_context.h"
 #include "ldb_expiration.h"

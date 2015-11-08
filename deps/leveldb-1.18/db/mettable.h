@@ -35,7 +35,7 @@ class MetTable {
     }
   }
 
-  void Insert(uint32_t value, const Slice& key, uint64_t version);
+  bool Insert(uint32_t value, const Slice& key, uint64_t version);
   bool Remove(uint32_t value, const Slice& key, uint64_t version);
   bool Query(uint32_t value, const Slice& key, uint64_t* version);
 
@@ -52,12 +52,11 @@ class MetTable {
 
   struct KeyBucket{
     KeyBucket(const int id);
-    void Insert(const std::string& key, uint64_t version);
+    bool Insert(const std::string& key, uint64_t version);
     bool Remove(const std::string& key, uint64_t version);
     bool Query(const std::string& key, uint64_t* version);
     size_t ApproximateMemoryUsage();
     std::tr1::unordered_map<std::string, uint64_t> keys_;
-    std::tr1::unordered_map<std::string, uint64_t> dels_;
     port::Mutex mutex_;
     int id_;
     size_t memory_usage_;

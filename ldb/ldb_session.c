@@ -16,7 +16,7 @@
 #include "t_zset.h"
 #include "t_hash.h"
 
-#include <leveldb-ldb/c.h>
+#include <leveldb/c.h>
 #include <string.h>
 #include <assert.h>
 

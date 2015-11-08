@@ -2,7 +2,7 @@
 #include "ldb_slice.h"
 #include "lmalloc.h"
 
-#include <leveldb-ldb/c.h>
+#include <leveldb/c.h>
 #include <string.h>
 
 struct ldb_bytes_t{

@@ -7,7 +7,7 @@
 #include "t_hash.h"
 #include "t_kv.h"
 
-#include <leveldb-ldb/c.h>
+#include <leveldb/c.h>
 #include <string.h>
 #include <assert.h>
 

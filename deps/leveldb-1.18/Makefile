@@ -68,8 +68,8 @@ TESTS = \
 PROGRAMS = db_bench leveldbutil $(TESTS)
 BENCHMARKS = db_bench_sqlite3 db_bench_tree_db
 
-LIBRARY = libleveldb-ldb.a
-MEMENVLIBRARY = libmemenv-ldb.a
+LIBRARY = libleveldb.a
+MEMENVLIBRARY = libmemenv.a
 
 default: all
 
@@ -77,7 +77,7 @@ default: all
 ifneq ($(PLATFORM_SHARED_EXT),)
 
 ifneq ($(PLATFORM_SHARED_VERSIONED),true)
-SHARED1 = libleveldb-ldb.$(PLATFORM_SHARED_EXT)
+SHARED1 = libleveldb.$(PLATFORM_SHARED_EXT)
 SHARED2 = $(SHARED1)
 SHARED3 = $(SHARED1)
 SHARED = $(SHARED1)
@@ -85,7 +85,7 @@ else
 # Update db.h if you change these.
 SHARED_MAJOR = 1
 SHARED_MINOR = 18
-SHARED1 = libleveldb-ldb.$(PLATFORM_SHARED_EXT)
+SHARED1 = libleveldb.$(PLATFORM_SHARED_EXT)
 SHARED2 = $(SHARED1).$(SHARED_MAJOR)
 SHARED3 = $(SHARED1).$(SHARED_MAJOR).$(SHARED_MINOR)
 SHARED = $(SHARED1) $(SHARED2) $(SHARED3)

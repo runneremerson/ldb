@@ -134,6 +134,7 @@ DBImpl::DBImpl(const Options& raw_options, const std::string& dbname)
       log_(NULL),
       seed_(0),
       tmp_batch_(new WriteBatch),
+      seq_for_recovering_(0),
       bg_compaction_scheduled_(false),
       manual_compaction_(NULL) {
   met_->Ref();
@@ -308,6 +309,7 @@ Status DBImpl::Recover(VersionEdit* edit) {
   s = versions_->Recover();
   if (s.ok()) {
     SequenceNumber max_sequence(0);
+    SequenceNumber min_sequence(0);
 
     // Recover from all newer log files than the ones named in the
     // descriptor (new log files may have been added by the previous
@@ -342,10 +344,12 @@ Status DBImpl::Recover(VersionEdit* edit) {
       return Status::Corruption(buf, TableFileName(dbname_, *(expected.begin())));
     }
 
+    //printf("the LastSequence1=%lu\n", versions_->LastSequence());
+
     // Recover in the order in which the logs were generated
     std::sort(logs.begin(), logs.end());
     for (size_t i = 0; i < logs.size(); i++) {
-      s = RecoverLogFile(logs[i], edit, &max_sequence);
+      s = RecoverLogFile(logs[i], edit, &max_sequence, &min_sequence);
 
       // The previous incarnation may not have written any MANIFEST
       // records after allocating this log number.  So we manually
@@ -358,6 +362,12 @@ Status DBImpl::Recover(VersionEdit* edit) {
         versions_->SetLastSequence(max_sequence);
       }
     }
+
+    //printf("the LastSequence2=%lu, min=%lu\n", versions_->LastSequence(), min_sequence);
+    if( min_sequence > 1){
+      seq_for_recovering_ = min_sequence - 1;
+    }
+    //printf("the LastSequence2=%lu, min=%lu, recover=%lu\n", versions_->LastSequence(), min_sequence, seq_for_recovering_);
   }
 
   return s;
@@ -365,7 +375,8 @@ Status DBImpl::Recover(VersionEdit* edit) {
 
 Status DBImpl::RecoverLogFile(uint64_t log_number,
                               VersionEdit* edit,
-                              SequenceNumber* max_sequence) {
+                              SequenceNumber* max_sequence,
+                              SequenceNumber* min_sequence) {
   struct LogReporter : public log::Reader::Reporter {
     Env* env;
     Logger* info_log;
@@ -428,18 +439,25 @@ Status DBImpl::RecoverLogFile(uint64_t log_number,
     if (!status.ok()) {
       break;
     }
+    const SequenceNumber first_seq = 
+        WriteBatchInternal::Sequence(&batch);
     const SequenceNumber last_seq =
         WriteBatchInternal::Sequence(&batch) +
         WriteBatchInternal::Count(&batch) - 1;
     if (last_seq > *max_sequence) {
       *max_sequence = last_seq;
     }
+    if (*min_sequence == 0){
+      *min_sequence = first_seq; 
+    } else if( first_seq < *min_sequence ){
+      *min_sequence = first_seq;
+    }
 
     if (mem->ApproximateMemoryUsage() > options_.write_buffer_size) {
       status = WriteLevel0Table(mem, edit, NULL);
       if (!status.ok()) {
-        // Reflect errors immediately so that conditions like full
-        // file-systems cause the DB::Open() to fail.
+      //  // Reflect errors immediately so that conditions like full
+      //  // file-systems cause the DB::Open() to fail.
         break;
       }
       mem->Unref();
@@ -1165,6 +1183,11 @@ void DBImpl::RecordReadSample(Slice key) {
 const Snapshot* DBImpl::GetSnapshot() {
   MutexLock l(&mutex_);
   return snapshots_.New(versions_->LastSequence());
+}
+
+const Snapshot* DBImpl::GetSnapshotForRecovering() {
+  MutexLock l(&mutex_);
+  return snapshots_.New(this->seq_for_recovering_);  
 }
 
 void DBImpl::ReleaseSnapshot(const Snapshot* s) {

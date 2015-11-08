@@ -38,6 +38,7 @@ class DBImpl : public DB {
                      std::string* value);
   virtual Iterator* NewIterator(const ReadOptions&);
   virtual const Snapshot* GetSnapshot();
+  virtual const Snapshot* GetSnapshotForRecovering();
   virtual void ReleaseSnapshot(const Snapshot* snapshot);
   virtual bool GetProperty(const Slice& property, std::string* value);
   virtual void GetApproximateSizes(const Range* range, int n, uint64_t* sizes);
@@ -93,7 +94,8 @@ class DBImpl : public DB {
 
   Status RecoverLogFile(uint64_t log_number,
                         VersionEdit* edit,
-                        SequenceNumber* max_sequence)
+                        SequenceNumber* max_sequence,
+                        SequenceNumber* min_sequence)
       EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   Status WriteLevel0Table(MemTable* mem, VersionEdit* edit, Version* base)
@@ -152,6 +154,8 @@ class DBImpl : public DB {
   WriteBatch* tmp_batch_;
 
   SnapshotList snapshots_;
+
+  SequenceNumber seq_for_recovering_;
 
   // Set of table files to protect from deletion because they are
   // part of ongoing compactions.

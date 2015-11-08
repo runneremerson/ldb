@@ -1,7 +1,7 @@
 #include "ldb_meta.h"
 #include "lmalloc.h"
 
-#include <leveldb-ldb/c.h>
+#include <leveldb/c.h>
 #include <stdint.h>
 
 

@@ -154,17 +154,17 @@ void MemTable::Add(SequenceNumber s, ValueType type,
           Slice mat_key(key.data()+mat_size, key.size()-mat_size);
           uint32_t crc32value = crc32c::Value(mat_key.data(), mat_key.size());
           mutexs_[crc32value%kNumKeyMutexs]->Lock();
-          if(!versioncare){
-              if(!met_->Query(crc32value, mat_key, &currversion) || currversion<nextversion){
-                  met_->Insert(crc32value, mat_key, nextversion);
-                  table_.Insert(buf);
+          if(versioncare & 0x00000001){
+              if(met_->Query(crc32value, mat_key, &currversion)){
+                  if(currversion == lastversion){
+                      if(met_->Insert(crc32value, mat_key, nextversion)){
+                        table_.Insert(buf);
+                      }
+                  }
               }
           }else{
-              if(met_->Query(crc32value, key, &currversion)){
-                  if(currversion == lastversion){
-                      met_->Insert(crc32value, key, nextversion);
-                      table_.Insert(buf);
-                  }
+              if(!met_->Insert(crc32value, mat_key, nextversion)){
+                  table_.Insert(buf);
               }
           }
           mutexs_[crc32value%kNumKeyMutexs]->Unlock();
@@ -181,7 +181,7 @@ void MemTable::Add(SequenceNumber s, ValueType type,
       uint32_t versioncare = DecodeFixed32(key.data());
       uint64_t lastversion = DecodeFixed64(key.data() + sizeof(uint32_t));
       uint64_t nextversion = DecodeFixed64(key.data() + sizeof(uint32_t) + sizeof(uint64_t));
-      if(nextversion >0){
+      if(nextversion >0 && (0x00000002 & versioncare)){
         type = kTypeValue;
         val_type = ValueType(type | kTypeLater);
       }
@@ -209,11 +209,17 @@ void MemTable::Add(SequenceNumber s, ValueType type,
           Slice mat_key(key.data()+mat_size, key.size()-mat_size);
           uint32_t crc32value = crc32c::Value(mat_key.data(), mat_key.size());
           mutexs_[crc32value%kNumKeyMutexs]->Lock();
-          if(met_->Remove(crc32value, mat_key, nextversion)){
-            table_.Insert(buf);
+          if(type == kTypeValue){
+            if(met_->Insert(crc32value, mat_key, nextversion)){
+              table_.Insert(buf);
+            }
+          }else if(type == kTypeDeletion ){
+            if(met_->Remove(crc32value, mat_key, nextversion)){ 
+              table_.Insert(buf);
+            }
           }
           mutexs_[crc32value%kNumKeyMutexs]->Unlock();
-      }else{
+      }else {
           table_.Insert(buf);
       }
   }

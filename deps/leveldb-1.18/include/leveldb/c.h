@@ -129,6 +129,9 @@ extern leveldb_iterator_t* leveldb_create_iterator(
 extern const leveldb_snapshot_t* leveldb_create_snapshot(
     leveldb_t* db);
 
+extern const leveldb_snapshot_t* leveldb_create_snapshot_for_recovering(
+    leveldb_t* db);
+
 extern void leveldb_release_snapshot(
     leveldb_t* db,
     const leveldb_snapshot_t* snapshot);

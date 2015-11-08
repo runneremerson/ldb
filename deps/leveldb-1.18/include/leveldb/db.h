@@ -96,6 +96,7 @@ class DB {
   // state.  The caller must call ReleaseSnapshot(result) when the
   // snapshot is no longer needed.
   virtual const Snapshot* GetSnapshot() = 0;
+  virtual const Snapshot* GetSnapshotForRecovering() = 0;
 
   // Release a previously acquired snapshot.  The caller must not
   // use "snapshot" after this call.

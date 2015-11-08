@@ -9,7 +9,7 @@
 #include "util.h"
 
 
-#include <leveldb-ldb/c.h>
+#include <leveldb/c.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

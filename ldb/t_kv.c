@@ -7,7 +7,7 @@
 #include "t_kv.h"
 #include "util.h"
 
-#include <leveldb-ldb/c.h>
+#include <leveldb/c.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>

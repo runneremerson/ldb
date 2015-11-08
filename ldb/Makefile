@@ -6,7 +6,7 @@ LDB_OBJS = ldb_session.o ldb_bytes.o ldb_context.o ldb_list.o ldb_meta.o ldb_sli
 
 
 
-CFLAGS= -std=gnu99 -O0 -g -I../ -I../../ -DUSE_TCMALLOC=1 -DUSE_INT=1 
+CFLAGS= -std=gnu99 -O0 -g -I../deps/leveldb-1.18/include -I../  -I../../ -DUSE_TCMALLOC=1 -DUSE_INT=1 
 
 all: ${LDB_OBJS}
 	ar -cru ../libldb.a ${LDB_OBJS}
@@ -41,5 +41,6 @@ t_hash.o: t_hash.h t_hash.c
 
 clean:
 	rm -f  *.o  *.a
+	rm -f ldb.test
 
 
