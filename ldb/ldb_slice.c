@@ -70,9 +70,15 @@ void ldb_slice_push_front(ldb_slice_t* slice, const char* data, size_t size){
 }
 
 const char* ldb_slice_data(const ldb_slice_t* slice){
-  return slice->data_;
+  if(slice != NULL){
+    return slice->data_;     
+  }
+  return NULL;
 }
 
 size_t ldb_slice_size(const ldb_slice_t* slice){
-  return slice->size_;
+  if(slice != NULL){
+    return slice->size_;     
+  }
+  return 0;
 }

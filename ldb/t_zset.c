@@ -134,11 +134,13 @@ void encode_zscore_key(const char* name, size_t namelen, const char* key, size_t
   ldb_slice_push_back(slice, buf, sizeof(int64_t));
   ldb_slice_push_back(slice, "=", 1);
   ldb_slice_push_back(slice, key, keylen); 
+  *pslice = slice;
 }
 
 int decode_zscore_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice_name, ldb_slice_t** pslice_key,  int64_t *pscore){
   int retval = 0;
-  ldb_slice_t *slice_name, *slice_key=NULL;
+  ldb_slice_t *slice_name = NULL;
+  ldb_slice_t *slice_key=NULL;
   ldb_bytes_t *bytes = ldb_bytes_create(ldbkey, ldbkeylen);
   if(ldb_bytes_skip(bytes, strlen(LDB_DATA_TYPE_ZSCORE) == -1)){
     goto err;
@@ -347,7 +349,7 @@ int zset_get(ldb_context_t* context, const ldb_slice_t* name,
     goto end;
   }
   if(val != NULL){
-    assert(vallen < sizeof(int64_t) + LDB_VAL_META_SIZE);
+    assert(vallen >= sizeof(int64_t) + LDB_VAL_META_SIZE);
     uint8_t type = leveldb_decode_fixed8(val);
     if(type & LDB_VALUE_TYPE_VAL){
         if(type & LDB_VALUE_TYPE_LAT){
@@ -695,7 +697,7 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name,
 
    ldb_slice_destroy(slice_key0);
 
-    return found ? 0 : 1;
+    return (found==LDB_OK) ? 0 : 1;
   }
   return 0; 
 }
@@ -769,6 +771,7 @@ static int zset_incr_size(ldb_context_t *context,
                                buff,
                                sizeof(uint64_t));
   } 
+  ldb_slice_destroy(slice_key);
   return 0;
 }
 

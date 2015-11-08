@@ -183,10 +183,72 @@ static void test_hash(ldb_context_t* context){
     rpush_ldb_list_node(keylist2, node_key);
 
     assert(hash_mget(context, slice_name3, keylist2, &vallist2, &metalist2) == LDB_OK);
-
+    ldb_list_iterator_t *iterator2 = ldb_list_iterator_create(vallist2);
+    while(1){
+        ldb_list_node_t *node = ldb_list_next(&iterator2);
+        if(node == NULL){
+            break;
+        }
+        printf("hmget result=%s\n", ldb_slice_data(node->data_)); 
+    }
+    ldb_list_iterator_destroy(iterator2);
     ldb_list_destroy(vallist2);
     ldb_list_destroy(keylist2);
     ldb_list_destroy(metalist2);
+
+    ldb_list_t *keylist3 = NULL;
+    assert(hash_keys(context, slice_name3, &keylist3) == LDB_OK);
+    ldb_list_iterator_t *iterator3 = ldb_list_iterator_create(keylist3);
+    while(1){
+        ldb_list_node_t *node = ldb_list_next(&iterator3);
+        if(node == NULL){
+            break;
+        }
+        printf("hkeys result=%s\n", ldb_slice_data(node->data_)); 
+    }
+    ldb_list_iterator_destroy(iterator3);
+    ldb_list_destroy(keylist3);
+
+    ldb_list_t *vallist3 = NULL;
+    ldb_list_t *metalist3 = NULL;
+    assert(hash_vals(context, slice_name3, &vallist3, &metalist3) == LDB_OK);
+    iterator3 = ldb_list_iterator_create(vallist3);
+    while(1){
+        ldb_list_node_t *node = ldb_list_next(&iterator3);
+        if(node == NULL){
+            break;
+        }
+        printf("hvals result=%s\n", ldb_slice_data(node->data_)); 
+    }
+    ldb_list_iterator_destroy(iterator3);
+    ldb_list_destroy(vallist3);
+    ldb_list_destroy(metalist3);
+
+
+    ldb_list_t *vallist4 = NULL;
+    ldb_list_t *keylist4 = NULL;
+    ldb_list_t *metalist4 = NULL;
+    assert(hash_getall(context, slice_name3, &keylist4, &vallist4, &metalist4) == LDB_OK);
+    ldb_list_iterator_t *iterator4 = ldb_list_iterator_create(vallist4);
+    ldb_list_iterator_t *iterator4_1 = ldb_list_iterator_create(keylist4);
+    while(1){
+        ldb_list_node_t *node_val = ldb_list_next(&iterator4);
+        ldb_list_node_t *node_key = ldb_list_next(&iterator4_1);
+        if(node_val == NULL || node_key == NULL){
+            break;
+        }
+        printf("hvals result key=%s, val=%s\n", ldb_slice_data(node_key->data_), ldb_slice_data(node_val->data_)); 
+    }
+    ldb_list_iterator_destroy(iterator4);
+    ldb_list_iterator_destroy(iterator4_1);
+    ldb_list_destroy(vallist4);
+    ldb_list_destroy(keylist4);
+    ldb_list_destroy(metalist4);
+
+    ldb_slice_destroy(slice_name3);
+
+
+
 }
 
 
