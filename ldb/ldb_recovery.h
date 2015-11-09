@@ -1,6 +1,8 @@
 #ifndef LDB_RECOVERY_H
 #define LDB_RECOVERY_H
 
+#include "ldb_context.h"
+
 typedef struct ldb_recovery_t     ldb_recovery_t;
 
 ldb_recovery_t* ldb_recovery_create( ldb_context_t* context );

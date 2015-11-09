@@ -3,6 +3,7 @@
 
 #define LDB_VERSION_CARE_EQUAL               0x00000001
 #define LDB_VERSION_CARE_CLEAR               0x00000002
+#define LDB_VERSION_CARE_RECOV               0x00000004
 
 #define LDB_VALUE_TYPE_DEL                   0x0
 #define LDB_VALUE_TYPE_VAL                   0x1

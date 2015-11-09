@@ -2,6 +2,7 @@
 #include "ldb/ldb_define.h"
 #include "ldb/util.h"
 
+#include <leveldb/c.h>
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
@@ -51,7 +52,6 @@ int main(int argc, char* argv[]){
     assert(context != NULL);
 
     test_zset(context);
-
 
 
     ldb_context_destroy(context);  

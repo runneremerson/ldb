@@ -650,7 +650,7 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name,
                         ldb_slice_size(name), 
                         ldb_slice_data(key), 
                         ldb_slice_size(key),
-                        NULL,
+                        meta,
                         old_score,
                         &slice_key1);
 
@@ -665,7 +665,7 @@ static int zset_one(ldb_context_t *context, const ldb_slice_t* name,
                       ldb_slice_size(name),
                       ldb_slice_data(key),
                       ldb_slice_size(key),
-                      NULL,
+                      meta,
                       score,
                       &slice_key2);
     //add zscore key

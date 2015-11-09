@@ -2,7 +2,8 @@ CC=gcc
 MAKE=make
 
 LDB_OBJS = ldb_session.o ldb_bytes.o ldb_context.o ldb_list.o ldb_meta.o ldb_slice.o \
-	   ldb_iterator.o lmalloc.o util.o t_string.o t_zset.o t_hash.o ldb_expiration.o 
+	   ldb_iterator.o lmalloc.o util.o t_string.o t_zset.o t_hash.o ldb_expiration.o \
+	   ldb_recovery.o
 
 
 

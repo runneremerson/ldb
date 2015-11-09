@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-struct ldb_expiration_t {
+struct ldb_recovery_t {
 };
 
 
