@@ -190,7 +190,7 @@ int ldb_mset(ldb_context_t* context,
     ldb_list_node_t *node_key = ldb_list_node_create();
     node_key->type_ = LDB_LIST_NODE_TYPE_SLICE;
     node_key->data_ = slice_key;;
-    lpush_ldb_list_node(datalist, node_key);
+    rpush_ldb_list_node(datalist, node_key);
     ++i;
 
     //push value
@@ -198,11 +198,10 @@ int ldb_mset(ldb_context_t* context,
     ldb_list_node_t *node_val = ldb_list_node_create();
     node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
     node_val->data_ = slice_val;
-    lpush_ldb_list_node(datalist, node_val);
+    rpush_ldb_list_node(datalist, node_val);
     ++i;
 
     //push meta
-    //ldb_meta_t *meta = ldb_meta_create(vercare, lastver, versions->data[v]);
     ldb_list_node_t *node_meta = ldb_list_node_create();
     node_meta->type_ = LDB_LIST_NODE_TYPE_META;
     if(exptime >0){
@@ -210,7 +209,7 @@ int ldb_mset(ldb_context_t* context,
     }else{
       node_meta->data_ = ldb_meta_create(vercare, lastver, versions->data[v]);
     }
-    lpush_ldb_list_node(metalist, node_meta);
+    rpush_ldb_list_node(metalist, node_meta);
     ++v;
   }
   
@@ -430,7 +429,7 @@ int ldb_mget(ldb_context_t* context,
     ldb_list_node_t *node_key = ldb_list_node_create();
     node_key->type_ = LDB_LIST_NODE_TYPE_SLICE;
     node_key->data_ = slice_key;;
-    lpush_ldb_list_node(keylist, node_key);
+    rpush_ldb_list_node(keylist, node_key);
     ++i;
   }
 
@@ -689,7 +688,7 @@ int ldb_hmget(ldb_context_t* context,
         ldb_list_node_t *node_key = ldb_list_node_create();
         node_key->type_ = LDB_LIST_NODE_TYPE_SLICE;
         node_key->data_ = slice_key;;
-        lpush_ldb_list_node(keylist, node_key);
+        rpush_ldb_list_node(keylist, node_key);
         ++i;
     }
     retval = hash_mget(context, slice_name, keylist, &vallist, &metalist);
@@ -806,7 +805,7 @@ int ldb_hmset(ldb_context_t* context,
         ldb_list_node_t *node_key = ldb_list_node_create();
         node_key->type_ = LDB_LIST_NODE_TYPE_SLICE;
         node_key->data_ = slice_key;;
-        lpush_ldb_list_node(datalist, node_key);
+        rpush_ldb_list_node(datalist, node_key);
         ++i;
 
         //push value
@@ -814,14 +813,14 @@ int ldb_hmset(ldb_context_t* context,
         ldb_list_node_t *node_val = ldb_list_node_create();
         node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
         node_val->data_ = slice_val;;
-        lpush_ldb_list_node(datalist, node_val);
+        rpush_ldb_list_node(datalist, node_val);
 
         //push meta
         ldb_meta_t *meta = ldb_meta_create(vercare, lastver, items[i].version_);
         ldb_list_node_t *node_meta = ldb_list_node_create();
         node_meta->type_ = LDB_LIST_NODE_TYPE_META;
         node_meta->data_ = meta;;
-        lpush_ldb_list_node(metalist, node_meta);
+        rpush_ldb_list_node(metalist, node_meta);
         ++i;
   }
   ldb_slice_t *slice_name = ldb_slice_create(name, namelen);

@@ -81,6 +81,70 @@ static void test_string(ldb_context_t* context){
     ldb_slice_destroy(key1);
 
     //mset mget
+    ldb_list_t *datalist, *metalist, *retlist = NULL;
+    datalist = ldb_list_create();
+    metalist = ldb_list_create();
+
+
+    char *cmkey1 = "mkey1";
+    char *cmval1 = "mval1";
+    uint64_t mnextver1 = nextver1 + 100000;
+    
+    ldb_slice_t *slice_key = ldb_slice_create(cmkey1, strlen(cmkey1));
+    ldb_list_node_t *node_key = ldb_list_node_create();
+    node_key->type_ = LDB_LIST_NODE_TYPE_SLICE;
+    node_key->data_ = slice_key;;
+    rpush_ldb_list_node(datalist, node_key);
+
+    ldb_slice_t *slice_val = ldb_slice_create(cmval1, strlen(cmval1));
+    ldb_list_node_t *node_val = ldb_list_node_create();
+    node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
+    node_val->data_ = slice_val;
+    rpush_ldb_list_node(datalist, node_val);
+
+    ldb_list_node_t *node_meta = ldb_list_node_create();
+    node_meta->type_ = LDB_LIST_NODE_TYPE_META;
+    node_meta->data_ = ldb_meta_create(0, 0, mnextver1);
+    rpush_ldb_list_node(metalist, node_meta);
+
+
+    char *cmkey2 = "mkey2";
+    char *cmval2 = "mval2";
+    uint64_t mnextver2 = mnextver1 + 100000;
+ 
+    slice_key = ldb_slice_create(cmkey2, strlen(cmkey2));
+    node_key = ldb_list_node_create();
+    node_key->type_ = LDB_LIST_NODE_TYPE_SLICE;
+    node_key->data_ = slice_key;;
+    rpush_ldb_list_node(datalist, node_key);
+
+    slice_val = ldb_slice_create(cmval2, strlen(cmval2));
+    node_val = ldb_list_node_create();
+    node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
+    node_val->data_ = slice_val;
+    rpush_ldb_list_node(datalist, node_val);
+
+    node_meta = ldb_list_node_create();
+    node_meta->type_ = LDB_LIST_NODE_TYPE_META;
+    node_meta->data_ = ldb_meta_create(0, 0, mnextver2);
+    rpush_ldb_list_node(metalist, node_meta);
+
+    assert(string_mset(context, datalist, metalist, &retlist) == LDB_OK);
+    ldb_list_iterator_t *iterator = ldb_list_iterator_create(retlist);
+    size_t now = 0;
+    while(1){
+        ldb_list_node_t *node = ldb_list_next(&iterator);
+        if(node == NULL){
+            break;
+        }
+        printf("mset result %d\n",(int)(node->value_));
+    }
+    ldb_list_iterator_destroy(iterator);
+ 
+
+    ldb_list_destroy(datalist);
+    ldb_list_destroy(metalist);
+    ldb_list_destroy(retlist);
 }
 
 static void test_expire(ldb_context_t* context){
