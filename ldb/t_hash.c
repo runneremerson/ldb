@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <assert.h>
 
 static int hset_one(ldb_context_t* context, const ldb_slice_t* name,
                     const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta); 
@@ -72,6 +73,7 @@ void encode_hash_key(const char* name, size_t namelen, const char* key, size_t k
   ldb_slice_push_back(slice, name, namelen);
   ldb_slice_push_back(slice, "=", 1);
   ldb_slice_push_back(slice, key, keylen);
+  *pslice = slice;
 }
 
 int decode_hash_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t **pslice_name, ldb_slice_t **pslice_key){
@@ -127,26 +129,28 @@ int hash_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t*
     goto end;
   }
   if(val!=NULL){
-    if(vallen < LDB_VAL_META_SIZE){
-      fprintf(stderr, "meta with size=%d, but vall=%ld\n", LDB_VAL_META_SIZE, vallen);  
-      retval = LDB_ERR;
-    }else{
-      uint8_t type = leveldb_decode_fixed8(val);
-      if(type == LDB_VALUE_TYPE_VAL){
-        *pslice = ldb_slice_create(val + LDB_VAL_META_SIZE, vallen - LDB_VAL_META_SIZE);
-        uint64_t version = leveldb_decode_fixed64(val + LDB_VAL_TYPE_SIZE);
-        *pmeta = ldb_meta_create(0, 0, version);
-        retval = LDB_OK;
-      }else{
+    assert(vallen>= LDB_VAL_META_SIZE);
+    uint8_t type = leveldb_decode_fixed8(val);
+    if(type & LDB_VALUE_TYPE_VAL){
+      if(type & LDB_VALUE_TYPE_LAT){
         retval = LDB_OK_NOT_EXIST;
+        goto end;
       }
+      *pslice = ldb_slice_create(val + LDB_VAL_META_SIZE, vallen - LDB_VAL_META_SIZE);
+      uint64_t version = leveldb_decode_fixed64(val + LDB_VAL_TYPE_SIZE);
+      *pmeta = ldb_meta_create(0, 0, version);
+      retval = LDB_OK;
+    }else{
+      retval = LDB_OK_NOT_EXIST;
     }
-    leveldb_free(val);
   }else{
     retval = LDB_OK_NOT_EXIST;
   }
 
 end:
+  if(val != NULL){
+    leveldb_free(val); 
+  }
   return retval;
 }
 

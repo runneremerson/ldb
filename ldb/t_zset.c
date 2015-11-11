@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <assert.h>
 
 int64_t LDB_SCORE_MIN = INT64_MIN;
 int64_t LDB_SCORE_MAX = INT64_MAX;
@@ -346,24 +347,26 @@ int zset_get(ldb_context_t* context, const ldb_slice_t* name,
     goto end;
   }
   if(val != NULL){
-    if(vallen < sizeof(int64_t) + LDB_VAL_META_SIZE){
-      fprintf(stderr, "score with size=%ld, but vallen=%ld\n", sizeof(int64_t), vallen - LDB_VAL_META_SIZE);
-      retval = LDB_ERR;
-    }else{
-      uint8_t type = leveldb_decode_fixed8(val);
-      if(type == LDB_VALUE_TYPE_VAL){
+    assert(vallen < sizeof(int64_t) + LDB_VAL_META_SIZE);
+    uint8_t type = leveldb_decode_fixed8(val);
+    if(type & LDB_VALUE_TYPE_VAL){
+        if(type & LDB_VALUE_TYPE_LAT){
+          retval = LDB_OK_NOT_EXIST;
+          goto end;
+        }
         *score = leveldb_decode_fixed64(val + LDB_VAL_META_SIZE);
         retval = LDB_OK;
       }else{
         retval = LDB_OK_NOT_EXIST;
       }
-    }
-    leveldb_free(val);
-    goto end;
   }else{
     retval = LDB_OK_NOT_EXIST;
   }
+
 end:
+  if(val != NULL){
+    leveldb_free(val); 
+  }
   return retval;
 }
 
