@@ -25,8 +25,6 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
 
 void ldb_context_destroy( ldb_context_t* context);
 
-void ldb_context_create_recovering_snapshot(ldb_context_t* context);
-
 void ldb_context_release_recovering_snapshot(ldb_context_t* context);
 
 void ldb_context_writebatch_commit(ldb_context_t* context, char** errptr);

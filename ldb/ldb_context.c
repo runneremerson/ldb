@@ -19,7 +19,6 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
     leveldb_options_set_filter_policy(context->options_, context->filter_policy_);
     context->block_cache_ = leveldb_cache_create_lru(cache_size*1024*1024);
     leveldb_options_set_cache(context->options_, context->block_cache_);
-    context->for_recovering_ = NULL;
     context->batch_ = leveldb_writebatch_create();
     context->mutex_ = leveldb_mutex_create();
     leveldb_options_set_block_size(context->options_, 32*1024);
@@ -31,11 +30,10 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
     if(leveldb_error!=NULL){
         goto err;
     }
+    context->for_recovering_ = (leveldb_snapshot_t*)leveldb_create_snapshot_for_recovering(context->database_);
+
     return context;
 err:
-    if(context->database_!=NULL){
-        leveldb_close(context->database_);
-    }
     if(context->options_!=NULL){
         leveldb_options_destroy(context->options_);
     }
@@ -45,11 +43,17 @@ err:
     if(context->block_cache_!=NULL){
         leveldb_cache_destroy(context->block_cache_);
     }
+    if(context->for_recovering_!=NULL){
+        leveldb_release_snapshot(context->database_, context->for_recovering_); 
+    }
     if(context->batch_!=NULL){
         leveldb_writebatch_destroy(context->batch_);
     }
     if(context->mutex_!=NULL){
         leveldb_mutex_destroy(context->mutex_);
+    }
+    if(context->database_!=NULL){
+        leveldb_close(context->database_);
     }
     lfree(context);
     return NULL;
@@ -57,18 +61,20 @@ err:
 
 void ldb_context_destroy( ldb_context_t* context){
     if(context!=NULL){
-        leveldb_close(context->database_);
         leveldb_options_destroy(context->options_);
         leveldb_filterpolicy_destroy(context->filter_policy_);
         leveldb_cache_destroy(context->block_cache_);
+        if(context->for_recovering_ != NULL){
+            leveldb_release_snapshot(context->database_, context->for_recovering_);
+        }
         leveldb_writebatch_destroy(context->batch_);
         leveldb_mutex_destroy(context->mutex_);
+        leveldb_close(context->database_);
     }
     lfree(context);
 }
 
 void ldb_context_create_recovering_snapshot(ldb_context_t* context){
-    context->for_recovering_ = (leveldb_snapshot_t*)leveldb_create_snapshot_for_recovering(context->database_);
 }
 
 void ldb_context_release_recovering_snapshot(ldb_context_t* context){
