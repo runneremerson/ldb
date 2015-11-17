@@ -122,6 +122,7 @@ int ldb_zset_iterator_next(ldb_zset_iterator_t *iterator){
             retval = -1;
             repeat = 1;
         }else{
+            repeat = 0;
             retval = 0;
         }
 
@@ -155,6 +156,10 @@ void ldb_zset_iterator_val(const ldb_zset_iterator_t *iterator, ldb_slice_t **ps
     size_t vlen = 0;
     const char *val = leveldb_iter_value(iterator->iterator_, &vlen);
     *pslice = ldb_slice_create(val, vlen);
+}
+
+const char* ldb_zset_iterator_key_raw(const ldb_zset_iterator_t *iterator, size_t* klen){
+    return leveldb_iter_key(iterator->iterator_, klen);
 }
 
 void ldb_zset_iterator_key(const ldb_zset_iterator_t *iterator, ldb_slice_t **pslice){

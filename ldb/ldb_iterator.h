@@ -32,6 +32,8 @@ void ldb_zset_iterator_val(const ldb_zset_iterator_t *iterator, ldb_slice_t **ps
 
 void ldb_zset_iterator_key(const ldb_zset_iterator_t *iterator, ldb_slice_t **pslice); 
 
+const char* ldb_zset_iterator_key_raw(const ldb_zset_iterator_t *iterator, size_t* klen);
+
 
 
 ldb_hash_iterator_t* ldb_hash_iterator_create(ldb_context_t *context, const ldb_slice_t *name,
