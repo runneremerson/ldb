@@ -91,7 +91,7 @@ int ldb_zset_iterator_next(ldb_zset_iterator_t *iterator){
         const char *key = leveldb_iter_key(iterator->iterator_, &klen);
         if(iterator->direction_ == FORWARD){
             if(ldb_slice_size(iterator->end_) > 0){
-                if(compare_with_length(key, klen, ldb_slice_data(iterator->end_), ldb_slice_size(iterator->end_)) > 0){
+                if(compare_with_length(key, klen, ldb_slice_data(iterator->end_), ldb_slice_size(iterator->end_)) >= 0){
                     iterator->limit_ = 0;
                     retval = -1;
                     goto end;
@@ -99,7 +99,7 @@ int ldb_zset_iterator_next(ldb_zset_iterator_t *iterator){
             }
         }else{
             if(ldb_slice_size(iterator->end_) >0){
-                if(compare_with_length(key, klen, ldb_slice_data(iterator->end_), ldb_slice_size(iterator->end_)) < 0){
+                if(compare_with_length(key, klen, ldb_slice_data(iterator->end_), ldb_slice_size(iterator->end_)) <= 0){
                     iterator->limit_ = 0;
                     retval = -1;
                     goto end;

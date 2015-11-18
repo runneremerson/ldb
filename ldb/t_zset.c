@@ -172,8 +172,13 @@ err:
   goto end;
 
 nor:
-  *pslice_name = slice_name;
-  *pslice_key = slice_key;
+  if(pslice_name != NULL){
+    *pslice_name = slice_name;
+        
+  }
+  if(pslice_key != NULL){
+    *pslice_key = slice_key;
+  }
   retval = 0;
   goto end;
 
@@ -385,14 +390,12 @@ int zset_rank(ldb_context_t* context, const ldb_slice_t* name,
 
   uint64_t tmp = 0;
   ldb_slice_t *slice_key = NULL;
-  ldb_slice_t *slice_name = NULL;
   while(1){
-    slice_name = NULL;
     slice_key = NULL;
     int64_t score = 0;
     size_t raw_klen = 0;
     const char* raw_key = ldb_zset_iterator_key_raw(iterator, &raw_klen);
-    if(decode_zscore_key(raw_key, raw_klen, &slice_name, &slice_key, &score) < 0){
+    if(decode_zscore_key(raw_key, raw_klen, NULL, &slice_key, &score) < 0){
         if(tmp == 0){
             retval = LDB_OK_NOT_EXIST;
             goto end;
@@ -408,24 +411,22 @@ int zset_rank(ldb_context_t* context, const ldb_slice_t* name,
       retval = LDB_OK;
       break;
     }
-    ldb_slice_destroy(slice_name);
     ldb_slice_destroy(slice_key);
 
     if(ldb_zset_iterator_next(iterator)!=0){
-      retval = LDB_OK_NOT_EXIST;
-      goto end; 
+      retval = LDB_OK;
+      break;
     }
     ++tmp;
   }
   *rank = tmp;
 
 end:
-  ldb_slice_destroy(slice_name);
-  ldb_slice_destroy(slice_key);
   ldb_zset_iterator_destroy(iterator);
   return retval;
 }
 
+//range like (]
 int zset_count(ldb_context_t* context, const ldb_slice_t* name,
         int64_t score_start, int64_t score_end, uint64_t *count){
   int retval = 0;
@@ -435,7 +436,10 @@ int zset_count(ldb_context_t* context, const ldb_slice_t* name,
     goto end;
   }
   *count = 0;
-  while(!ldb_zset_iterator_next(iterator)){
+  while(1){
+    if(ldb_zset_iterator_next(iterator)){
+      break; 
+    }
     (*count) += 1;
   }
   retval = LDB_OK;
@@ -571,7 +575,7 @@ int zset_incr(ldb_context_t* context, const ldb_slice_t* name,
   int retval = LDB_OK;
   if(ret == LDB_OK){
     *val = old_score + by;
-  }else if(ret = LDB_OK_NOT_EXIST){
+  }else if(ret == LDB_OK_NOT_EXIST){
     *val = by;
   }else{
     retval = ret;

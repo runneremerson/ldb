@@ -153,6 +153,7 @@ void MemTable::Add(SequenceNumber s, ValueType type,
       if(met_!=NULL && nextversion>0){
           Slice mat_key(key.data()+mat_size, key.size()-mat_size);
           uint32_t crc32value = crc32c::Value(mat_key.data(), mat_key.size());
+          //printf("crc32value=%u, type=%d\n", crc32value, type);
           mutexs_[crc32value%kNumKeyMutexs]->Lock();
           if(versioncare & 0x00000001){
               if(met_->Query(crc32value, mat_key, &currversion)){
@@ -163,7 +164,7 @@ void MemTable::Add(SequenceNumber s, ValueType type,
                   }
               }
           }else{
-              if(!met_->Insert(crc32value, mat_key, nextversion)){
+              if(met_->Insert(crc32value, mat_key, nextversion)){
                   table_.Insert(buf);
               }
           }
@@ -208,6 +209,7 @@ void MemTable::Add(SequenceNumber s, ValueType type,
       if(met_ !=NULL){
           Slice mat_key(key.data()+mat_size, key.size()-mat_size);
           uint32_t crc32value = crc32c::Value(mat_key.data(), mat_key.size());
+          //printf("crc32value=%u, type=%d\n", crc32value, type);
           mutexs_[crc32value%kNumKeyMutexs]->Lock();
           if(type == kTypeValue){
             if(met_->Insert(crc32value, mat_key, nextversion)){

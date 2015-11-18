@@ -62,7 +62,7 @@ static void test_zset(ldb_context_t* context){
     uint64_t nextver5 = nextver4 + 100000;
     ldb_meta_t *meta5= ldb_meta_create(0, 0, nextver5);
     int64_t val = 0;
-    assert(zset_incr(context, slice_name1, slice_key5, meta5, -10, &val) == LDB_OK);
+    assert(zset_incr(context, slice_name1, slice_key5, meta5, 10, &val) == LDB_OK);
 
     val = 0;
     assert(zset_get(context, slice_name1, slice_key5,  &val) == LDB_OK);
@@ -74,6 +74,10 @@ static void test_zset(ldb_context_t* context){
     assert(zset_size(context, slice_name1, &size) == LDB_OK);
     assert(size == 5);
 
+    uint64_t count = 0;
+    assert(zset_count(context, slice_name1, -70, 57, &count) == LDB_OK);
+    assert(count == 3);
+
 }
 
 
@@ -81,6 +85,8 @@ static void test_zset(ldb_context_t* context){
 int main(int argc, char* argv[]){
     ldb_context_t *context = ldb_context_create("/tmp/testzset", 128, 64);
     assert(context != NULL);
+    ldb_context_release_recovering_snapshot(context);
+    
 
     test_zset(context);
 

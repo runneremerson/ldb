@@ -34,6 +34,9 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
 
     return context;
 err:
+    if(context->database_!=NULL){
+        leveldb_close(context->database_);
+    }
     if(context->options_!=NULL){
         leveldb_options_destroy(context->options_);
     }
@@ -52,15 +55,13 @@ err:
     if(context->mutex_!=NULL){
         leveldb_mutex_destroy(context->mutex_);
     }
-    if(context->database_!=NULL){
-        leveldb_close(context->database_);
-    }
     lfree(context);
     return NULL;
 }
 
 void ldb_context_destroy( ldb_context_t* context){
     if(context!=NULL){
+        leveldb_close(context->database_);
         leveldb_options_destroy(context->options_);
         leveldb_filterpolicy_destroy(context->filter_policy_);
         leveldb_cache_destroy(context->block_cache_);
@@ -69,7 +70,6 @@ void ldb_context_destroy( ldb_context_t* context){
         }
         leveldb_writebatch_destroy(context->batch_);
         leveldb_mutex_destroy(context->mutex_);
-        leveldb_close(context->database_);
     }
     lfree(context);
 }
