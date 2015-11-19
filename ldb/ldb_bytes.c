@@ -41,6 +41,7 @@ int ldb_bytes_read_int64(ldb_bytes_t* bytes, int64_t* val){
   return sizeof(int64_t);
 }
 
+
 int ldb_bytes_read_uint64(ldb_bytes_t* bytes, uint64_t* val){
   if(bytes->size_ < sizeof(uint64_t)){
     return -1;

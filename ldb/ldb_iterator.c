@@ -10,6 +10,7 @@
 #include <leveldb/c.h>
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
 struct ldb_data_iterator_t {
     ldb_slice_t *name_;
@@ -30,13 +31,14 @@ ldb_zset_iterator_t* ldb_zset_iterator_create(ldb_context_t *context, const ldb_
     leveldb_readoptions_set_fill_cache(readoptions, 0);
     iterator->iterator_ = leveldb_create_iterator(context->database_, readoptions);
     leveldb_iter_seek(iterator->iterator_, ldb_slice_data(start) + LDB_KEY_META_SIZE, ldb_slice_size(start) - LDB_KEY_META_SIZE);
+
     if(iterator->direction_ == FORWARD){
         if(leveldb_iter_valid(iterator->iterator_)){
             size_t klen = 0;
             const char* key = leveldb_iter_key(iterator->iterator_, &klen);
             if(compare_with_length(ldb_slice_data(start) + LDB_KEY_META_SIZE, ldb_slice_size(start) - LDB_KEY_META_SIZE, key, klen)==0){
                 leveldb_iter_next(iterator->iterator_);
-            }
+            } 
         }
     }else{
         if(leveldb_iter_valid(iterator->iterator_)){
@@ -45,6 +47,7 @@ ldb_zset_iterator_t* ldb_zset_iterator_create(ldb_context_t *context, const ldb_
             leveldb_iter_seek_to_last(iterator->iterator_);
         }
     }
+
     leveldb_readoptions_destroy(readoptions);
     return iterator;
 }
@@ -62,15 +65,16 @@ int ldb_zset_iterator_next(ldb_zset_iterator_t *iterator){
     int retval = 0;
 
     while(1){
-        if(iterator->limit_ == 0){
-            retval = -1;
-            goto end;
-        }
 
         if(iterator->direction_ == FORWARD){
             leveldb_iter_next(iterator->iterator_);
         }else{
             leveldb_iter_prev(iterator->iterator_);
+        }
+
+        if(iterator->limit_ == 0){
+            retval = -1;
+            goto end;
         }
 
         if(!leveldb_iter_valid(iterator->iterator_)){
@@ -122,6 +126,9 @@ int ldb_zset_iterator_next(ldb_zset_iterator_t *iterator){
             retval = -1;
             repeat = 1;
         }else{
+            printbuf(key, klen);
+            printf("%s, score=%ld \n", __func__, score);
+
             repeat = 0;
             retval = 0;
         }
@@ -160,6 +167,10 @@ void ldb_zset_iterator_val(const ldb_zset_iterator_t *iterator, ldb_slice_t **ps
 
 const char* ldb_zset_iterator_key_raw(const ldb_zset_iterator_t *iterator, size_t* klen){
     return leveldb_iter_key(iterator->iterator_, klen);
+}
+
+int ldb_zset_iterator_valid(const ldb_zset_iterator_t *iterator){
+    return leveldb_iter_valid(iterator->iterator_); 
 }
 
 void ldb_zset_iterator_key(const ldb_zset_iterator_t *iterator, ldb_slice_t **pslice){

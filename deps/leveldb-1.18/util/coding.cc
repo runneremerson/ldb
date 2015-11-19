@@ -45,6 +45,8 @@ void EncodeFixed64(char* buf, uint64_t value) {
   }
 }
 
+
+
 void PutFixed32(std::string* dst, uint32_t value) {
   char buf[sizeof(value)];
   EncodeFixed32(buf, value);

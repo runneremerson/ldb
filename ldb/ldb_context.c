@@ -34,6 +34,9 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
 
     return context;
 err:
+    if(context->for_recovering_!=NULL){
+        leveldb_release_snapshot(context->database_, context->for_recovering_); 
+    }
     if(context->database_!=NULL){
         leveldb_close(context->database_);
     }
@@ -45,9 +48,6 @@ err:
     }
     if(context->block_cache_!=NULL){
         leveldb_cache_destroy(context->block_cache_);
-    }
-    if(context->for_recovering_!=NULL){
-        leveldb_release_snapshot(context->database_, context->for_recovering_); 
     }
     if(context->batch_!=NULL){
         leveldb_writebatch_destroy(context->batch_);
@@ -61,13 +61,13 @@ err:
 
 void ldb_context_destroy( ldb_context_t* context){
     if(context!=NULL){
+        if(context->for_recovering_ != NULL){
+            leveldb_release_snapshot(context->database_, context->for_recovering_);
+        }
         leveldb_close(context->database_);
         leveldb_options_destroy(context->options_);
         leveldb_filterpolicy_destroy(context->filter_policy_);
         leveldb_cache_destroy(context->block_cache_);
-        if(context->for_recovering_ != NULL){
-            leveldb_release_snapshot(context->database_, context->for_recovering_);
-        }
         leveldb_writebatch_destroy(context->batch_);
         leveldb_mutex_destroy(context->mutex_);
     }

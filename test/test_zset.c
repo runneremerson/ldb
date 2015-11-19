@@ -14,12 +14,13 @@ static void test_zset(ldb_context_t* context){
     ldb_slice_t *slice_key1 = ldb_slice_create(zset_key1, strlen(zset_key1));
     uint64_t nextver1 = time_ms();
     ldb_meta_t *meta1 = ldb_meta_create(0, 0, nextver1);
-    int64_t score1 = 50;
+    int64_t score1 = -500;
 
     assert(zset_add(context, slice_name1, slice_key1, meta1, score1) == LDB_OK);
 
     score1 = 0;
     assert(zset_get(context, slice_name1, slice_key1, &score1) == LDB_OK);
+    printf("zset_get %s, result=%ld\n\n", zset_key1, score1);
 
 
     uint64_t size = 0;
@@ -28,15 +29,19 @@ static void test_zset(ldb_context_t* context){
     ldb_slice_t *slice_key2 = ldb_slice_create(zset_key2, strlen(zset_key2));
     uint64_t nextver2 = nextver1 + 100000;
     ldb_meta_t *meta2 = ldb_meta_create(0, 0, nextver2);
-    int64_t score2 = 51;
+    int64_t score2 = 151;
     assert(zset_add(context, slice_name1, slice_key2, meta2, score2)== LDB_OK);
+
+    score2= 0;
+    assert(zset_get(context, slice_name1, slice_key2, &score2) == LDB_OK);
+    printf("zset_get %s, result=%ld\n\n", zset_key2, score2);
 
 
     const char *zset_key3 = "zset_key3";
     ldb_slice_t *slice_key3 = ldb_slice_create(zset_key3, strlen(zset_key3));
     uint64_t nextver3 = nextver2 + 100000;
     ldb_meta_t *meta3 = ldb_meta_create(0, 0, nextver3);
-    int64_t score3 = 57;
+    int64_t score3 = 5700;
     assert(zset_add(context, slice_name1, slice_key3, meta3, score3)== LDB_OK);
 
     size = 0;
@@ -62,7 +67,7 @@ static void test_zset(ldb_context_t* context){
     uint64_t nextver5 = nextver4 + 100000;
     ldb_meta_t *meta5= ldb_meta_create(0, 0, nextver5);
     int64_t val = 0;
-    assert(zset_incr(context, slice_name1, slice_key5, meta5, 10, &val) == LDB_OK);
+    assert(zset_incr(context, slice_name1, slice_key5, meta5, 100, &val) == LDB_OK);
 
     val = 0;
     assert(zset_get(context, slice_name1, slice_key5,  &val) == LDB_OK);
@@ -70,13 +75,42 @@ static void test_zset(ldb_context_t* context){
 
     
 
+    const char *zset_key6 = "zset_key6";
+    ldb_slice_t *slice_key6 = ldb_slice_create(zset_key6, strlen(zset_key6));
+    uint64_t nextver6 = nextver5 + 100000;
+    ldb_meta_t *meta6 = ldb_meta_create(0, 0, nextver6);
+    int64_t score6= -170;
+    assert(zset_add(context, slice_name1, slice_key6, meta6, score6) == LDB_OK);
+
+
+
+    const char *zset_key7 = "zset_key7";
+    ldb_slice_t *slice_key7 = ldb_slice_create(zset_key7, strlen(zset_key7));
+    uint64_t nextver7 = nextver6 + 100000;
+    ldb_meta_t *meta7 = ldb_meta_create(0, 0, nextver7);
+    int64_t score7= 7170;
+    assert(zset_add(context, slice_name1, slice_key7, meta7, score7) == LDB_OK);
+
     size = 0;
     assert(zset_size(context, slice_name1, &size) == LDB_OK);
-    assert(size == 5);
+    assert(size == 7);
+
+    printf("\n");
 
     uint64_t count = 0;
-    assert(zset_count(context, slice_name1, -70, 57, &count) == LDB_OK);
-    assert(count == 3);
+    int64_t sstart = -7000000;
+    int64_t send = 0x000000000000FFFF;
+    assert(zset_count(context, slice_name1, sstart, send, &count) == LDB_OK);
+    printf("zset_count %ld  members between (%ld and %ld]\n\n", count, sstart, send);
+
+
+    uint64_t nextver8 = nextver7 + 100000;
+    ldb_meta_t *meta8 = ldb_meta_create(0, 0, nextver8);
+    assert(zset_del(context, slice_name1, slice_key6, meta8) == LDB_OK);
+
+    assert(zset_count(context, slice_name1, sstart, send, &count) == LDB_OK);
+    printf("zset_count %ld  members between (%ld and %ld]\n\n", count, sstart, send);
+
 
 }
 

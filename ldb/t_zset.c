@@ -129,9 +129,8 @@ void encode_zscore_key(const char* name, size_t namelen, const char* key, size_t
   }else{
     ldb_slice_push_back(slice, "=", 1);
   }
-  char buf[sizeof(int64_t)] = {0};
-  leveldb_encode_fixed64(buf, score);
-  ldb_slice_push_back(slice, buf, sizeof(int64_t));
+  score = big_endian_u64(score);
+  ldb_slice_push_back(slice, (const char*)&score, sizeof(int64_t));
   ldb_slice_push_back(slice, "=", 1);
   ldb_slice_push_back(slice, key, keylen); 
   *pslice = slice;
@@ -155,7 +154,7 @@ int decode_zscore_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice
   if(ldb_bytes_read_int64(bytes, &s) == -1){
     goto err;
   }else{
-    *pscore = s;
+    *pscore = big_endian_u64(s);
   }
   if(ldb_bytes_skip(bytes, 1) == -1){
     goto err;
@@ -389,18 +388,18 @@ int zset_rank(ldb_context_t* context, const ldb_slice_t* name,
   }
 
   uint64_t tmp = 0;
-  ldb_slice_t *slice_key = NULL;
+  ldb_slice_t *slice_key = NULL; 
   while(1){
     slice_key = NULL;
     int64_t score = 0;
     size_t raw_klen = 0;
     const char* raw_key = ldb_zset_iterator_key_raw(iterator, &raw_klen);
-    if(decode_zscore_key(raw_key, raw_klen, NULL, &slice_key, &score) < 0){
-        if(tmp == 0){
-            retval = LDB_OK_NOT_EXIST;
-            goto end;
-        }
-        break;
+    if(!ldb_zset_iterator_valid(iterator) || decode_zscore_key(raw_key, raw_klen, NULL, &slice_key, &score) < 0){
+      if(tmp == 0){
+        retval = LDB_OK_NOT_EXIST;
+        goto end;
+      }
+      break;
     }
 
     if(compare_with_length(ldb_slice_data(key),
@@ -408,14 +407,15 @@ int zset_rank(ldb_context_t* context, const ldb_slice_t* name,
                            ldb_slice_data(slice_key),
                            ldb_slice_size(slice_key))==0){
       
+      ldb_slice_destroy(slice_key);
       retval = LDB_OK;
       break;
     }
     ldb_slice_destroy(slice_key);
 
-    if(ldb_zset_iterator_next(iterator)!=0){
+    if(ldb_zset_iterator_next(iterator)){
       retval = LDB_OK;
-      break;
+      goto end;
     }
     ++tmp;
   }
@@ -436,10 +436,8 @@ int zset_count(ldb_context_t* context, const ldb_slice_t* name,
     goto end;
   }
   *count = 0;
-  while(1){
-    if(ldb_zset_iterator_next(iterator)){
-      break; 
-    }
+  //TODO +1
+  while(!ldb_zset_iterator_next(iterator)){
     (*count) += 1;
   }
   retval = LDB_OK;
@@ -845,6 +843,8 @@ static ldb_zset_iterator_t* ziterator(ldb_context_t *context, const ldb_slice_t 
                          send,
                          &key_end);
     }
+    printf("%s \n", __func__);
+    printbuf(ldb_slice_data(key_start) + 28, ldb_slice_size(key_start) -  28);
 
     ldb_zset_iterator_t* iterator = ldb_zset_iterator_create(context, name,  key_start, key_end, limit, direction);
 

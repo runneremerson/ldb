@@ -90,6 +90,8 @@ inline uint32_t DecodeFixed32(const char* ptr) {
   }
 }
 
+
+
 inline uint64_t DecodeFixed64(const char* ptr) {
   if (port::kLittleEndian) {
     // Load the raw bytes
@@ -102,6 +104,8 @@ inline uint64_t DecodeFixed64(const char* ptr) {
     return (hi << 32) | lo;
   }
 }
+
+
 
 // Internal routine for use by fallback path of GetVarint32Ptr
 extern const char* GetVarint32PtrFallback(const char* p,
