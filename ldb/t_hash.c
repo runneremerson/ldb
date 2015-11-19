@@ -80,6 +80,10 @@ int decode_hash_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t **pslice_n
   int retval = 0;
   ldb_slice_t *slice_name, *slice_key = NULL;
   ldb_bytes_t *bytes = ldb_bytes_create(ldbkey, ldbkeylen);
+
+  if(compare_with_length(ldbkey, strlen(LDB_DATA_TYPE_HASH), LDB_DATA_TYPE_HASH, strlen(LDB_DATA_TYPE_HASH))!=0){
+    goto err;
+  }
   if(ldb_bytes_skip(bytes, strlen(LDB_DATA_TYPE_HASH))==-1){
     goto err;
   }

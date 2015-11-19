@@ -24,11 +24,15 @@ void encode_kv_key(const char* key, size_t keylen, const ldb_meta_t* meta, ldb_s
 
 int decode_kv_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice){
   int retval = 0;
+  ldb_slice_t *slice_key = NULL;
   ldb_bytes_t* bytes = ldb_bytes_create(ldbkey, ldbkeylen);
+
+  if(compare_with_length(ldbkey, strlen(LDB_DATA_TYPE_STRING), LDB_DATA_TYPE_STRING, strlen(LDB_DATA_TYPE_STRING))!=0){
+    goto err;
+  }
   if(ldb_bytes_skip(bytes, strlen(LDB_DATA_TYPE_STRING)) == -1 ){
     goto err;
   }
-  ldb_slice_t *slice_key = NULL;
   if(ldb_bytes_read_slice_size_left(bytes, &slice_key) == -1){
     goto err;
   }

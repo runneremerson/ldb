@@ -85,7 +85,7 @@ int ldb_zset_iterator_next(ldb_zset_iterator_t *iterator){
 
         size_t vlen = 0;
         const char *val = leveldb_iter_value(iterator->iterator_, &vlen);
-        assert(vlen > LDB_VAL_META_SIZE);
+        assert(vlen >= LDB_VAL_META_SIZE);
         uint8_t type = leveldb_decode_fixed8(val);
         if(type & LDB_VALUE_TYPE_LAT){
             continue;
@@ -113,11 +113,6 @@ int ldb_zset_iterator_next(ldb_zset_iterator_t *iterator){
 
         (iterator->limit_)--;
 
-        if(compare_with_length(key, strlen(LDB_DATA_TYPE_ZSCORE), LDB_DATA_TYPE_ZSCORE, strlen(LDB_DATA_TYPE_ZSCORE))!=0){
-            retval = -1;
-            goto end;
-        }
-
         ldb_slice_t *slice_name, *slice_key = NULL;
         int64_t score = 0;
 
@@ -126,9 +121,6 @@ int ldb_zset_iterator_next(ldb_zset_iterator_t *iterator){
             retval = -1;
             repeat = 1;
         }else{
-            printbuf(key, klen);
-            printf("%s, score=%ld \n", __func__, score);
-
             repeat = 0;
             retval = 0;
         }
@@ -167,6 +159,10 @@ void ldb_zset_iterator_val(const ldb_zset_iterator_t *iterator, ldb_slice_t **ps
 
 const char* ldb_zset_iterator_key_raw(const ldb_zset_iterator_t *iterator, size_t* klen){
     return leveldb_iter_key(iterator->iterator_, klen);
+}
+
+const char* ldb_zset_iterator_val_raw(const ldb_zset_iterator_t *iterator, size_t* vlen){
+    return leveldb_iter_value(iterator->iterator_, vlen);
 }
 
 int ldb_zset_iterator_valid(const ldb_zset_iterator_t *iterator){
@@ -243,7 +239,7 @@ int ldb_hash_iterator_next(ldb_hash_iterator_t *iterator){
 
         size_t vlen = 0;
         const char *val = leveldb_iter_value(iterator->iterator_, &vlen);
-        assert(vlen > LDB_VAL_META_SIZE);
+        assert(vlen >= LDB_VAL_META_SIZE);
         uint8_t type = leveldb_decode_fixed8(val);
         if(type & LDB_VALUE_TYPE_LAT){
             continue;
@@ -271,10 +267,6 @@ int ldb_hash_iterator_next(ldb_hash_iterator_t *iterator){
 
         (iterator->limit_)--;
 
-        if(compare_with_length(key, strlen(LDB_DATA_TYPE_HASH), LDB_DATA_TYPE_HASH, strlen(LDB_DATA_TYPE_HASH))!=0){
-            retval = -1;
-            goto end;
-        }
         ldb_slice_t *slice_name, *slice_key = NULL;
         int repeat = 0;
         if(decode_hash_key(key, klen, &slice_name, &slice_key) < 0){
@@ -372,7 +364,7 @@ int ldb_string_iterator_next(ldb_string_iterator_t *iterator){
 
         size_t vlen = 0;
         const char *val = leveldb_iter_value(iterator->iterator_, &vlen);
-        assert(vlen > LDB_VAL_META_SIZE);
+        assert(vlen >= LDB_VAL_META_SIZE);
         uint8_t type = leveldb_decode_fixed8(val);
         if(type & LDB_VALUE_TYPE_LAT){
             continue;
@@ -400,10 +392,6 @@ int ldb_string_iterator_next(ldb_string_iterator_t *iterator){
 
         (iterator->limit_)--;
 
-        if(compare_with_length(key, strlen(LDB_DATA_TYPE_STRING), LDB_DATA_TYPE_STRING, strlen(LDB_DATA_TYPE_STRING))!=0){
-            retval = -1;
-            goto end;
-        }
         ldb_slice_t *slice_key = NULL;
         int repeat = 0;
         if(decode_kv_key(key, klen, &slice_key) < 0){
