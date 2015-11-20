@@ -260,7 +260,10 @@ int zset_del_range_by_rank(ldb_context_t* context, const ldb_slice_t* name,
   ldb_zset_iterator_t *iterator = NULL;
   uint64_t offset, limit, size = 0;
   retval = zset_size(context, name, &size);
-  if(retval != LDB_OK && retval != LDB_OK_NOT_EXIST){
+  if(retval == LDB_OK_NOT_EXIST){
+    goto end;
+  }
+  if(retval != LDB_OK){
     goto end;
   }
   if(rank_start < 0){
@@ -285,6 +288,11 @@ int zset_del_range_by_rank(ldb_context_t* context, const ldb_slice_t* name,
     retval = LDB_OK_RANGE_HAVE_NONE;
     goto end;
   }
+  if(!ldb_zset_iterator_valid(iterator)){
+    retval = LDB_OK_RANGE_HAVE_NONE;
+    goto end;
+  }
+  
   (*deleted) = 0;
   do{
     if((*deleted)==limit){
@@ -894,6 +902,9 @@ static int zrange(ldb_context_t* context, const ldb_slice_t* name,
   uint64_t start, end = 0;
   start = LDB_SCORE_MIN;
   end = LDB_SCORE_MAX;
+  if((offset + limit)> limit){
+    limit = offset + limit;
+  }
   if(reverse == 0){
     *piterator = ziterator(context, name, NULL, start, end, limit, FORWARD);  
   }else{
