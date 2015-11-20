@@ -178,9 +178,13 @@ err:
 nor:
   if(pslice_name != NULL){
     *pslice_name = slice_name;
+  }else{
+    ldb_slice_destroy(slice_name);
   }
   if(pslice_key != NULL){
     *pslice_key = slice_key;
+  }else{
+    ldb_slice_destroy(slice_key);
   }
   if(pscore != NULL){
     *pscore = score;
@@ -276,13 +280,16 @@ int zset_del_range_by_rank(ldb_context_t* context, const ldb_slice_t* name,
     rank_end = (int)(size - 1);
   }
   offset = rank_start;
-  limit = (rank_end - rank_start) + 1;
+  limit = rank_end - rank_start;
   if(zrange(context, name, offset, limit, 0, &iterator)<0){
     retval = LDB_OK_RANGE_HAVE_NONE;
     goto end;
   }
   (*deleted) = 0;
   do{
+    if((*deleted)==limit){
+      goto end;
+    }
     ldb_slice_t *slice_key = NULL;
     ldb_slice_t *key = NULL;
     ldb_zset_iterator_key(iterator, &slice_key);
@@ -317,28 +324,32 @@ int zset_del_range_by_score(ldb_context_t* context, const ldb_slice_t* name,
   }
 
   (*deleted) = 0;
+  int not_stop = 1;
   do{
-    ldb_slice_t *slice_key, *slice_name, *key = NULL;
-    uint64_t value = 0;
+    ldb_slice_t *slice_key=NULL, *key = NULL;
+    int64_t value = 0;
     ldb_zset_iterator_key(iterator, &slice_key);
     if(decode_zscore_key(ldb_slice_data(slice_key),
                          ldb_slice_size(slice_key),
-                         &slice_name,
+                         NULL,
                          &key,
                          &value) == 0){ 
-      if(zset_del(context, name, key, meta) == LDB_OK){
-        *deleted += 1;
+      if(value < score_end){
+        if(zset_del(context, name, key, meta) == LDB_OK){
+          *deleted += 1;
+        }
+      }else{
+        not_stop = 0;
       }
       ldb_slice_destroy(key);
     }
     ldb_slice_destroy(slice_key);
-    ldb_slice_destroy(slice_name);
-  }while(!ldb_zset_iterator_next(iterator));
+  }while(not_stop && !ldb_zset_iterator_next(iterator));
 
-  ldb_zset_iterator_destroy(iterator);
   retval = LDB_OK;
 
 end:
+  ldb_zset_iterator_destroy(iterator);
   return retval;
 }
 
@@ -499,7 +510,7 @@ int zset_range(ldb_context_t* context, const ldb_slice_t* name,
     rank_end = (int)(size - 1);
   }
   offset = rank_start;
-  limit = (rank_end - rank_start) + 1;
+  limit = rank_end - rank_start;
   ldb_zset_iterator_t *iterator = NULL;
   if(zrange(context, name, offset, limit, reverse, &iterator)<0){
     retval = LDB_OK_RANGE_HAVE_NONE;
@@ -508,12 +519,12 @@ int zset_range(ldb_context_t* context, const ldb_slice_t* name,
   ldb_list_t *keylist = ldb_list_create();
   ldb_list_t *metlist = ldb_list_create();
   do{
-    ldb_slice_t *slice_key, *slice_val, *slice_name, *slice_node = NULL;
+    ldb_slice_t *slice_key = NULL, *slice_val = NULL,  *slice_node = NULL;
     int64_t value = 0;
     ldb_zset_iterator_key(iterator, &slice_key);
     if(decode_zscore_key( ldb_slice_data(slice_key),
                        ldb_slice_size(slice_key),
-                       &slice_name,
+                       NULL,
                        &slice_node,
                        &value)==0){ 
       //first node
@@ -882,11 +893,7 @@ static int zrange(ldb_context_t* context, const ldb_slice_t* name,
         uint64_t offset, uint64_t limit, int reverse, ldb_zset_iterator_t **piterator){
   uint64_t start, end = 0;
   start = LDB_SCORE_MIN;
-  if(offset < LDB_SCORE_MAX-limit){
-    end = offset + limit;
-  }else{
-    end = LDB_SCORE_MAX;
-  }
+  end = LDB_SCORE_MAX;
   if(reverse == 0){
     *piterator = ziterator(context, name, NULL, start, end, limit, FORWARD);  
   }else{

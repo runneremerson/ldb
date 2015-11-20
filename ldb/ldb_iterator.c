@@ -113,11 +113,10 @@ int ldb_zset_iterator_next(ldb_zset_iterator_t *iterator){
 
         (iterator->limit_)--;
 
-        ldb_slice_t *slice_name, *slice_key = NULL;
         int64_t score = 0;
 
         int repeat = 0;
-        if(decode_zscore_key(key, klen, &slice_name, &slice_key, &score) < 0){
+        if(decode_zscore_key(key, klen, NULL, NULL, &score) < 0){
             retval = -1;
             repeat = 1;
         }else{
@@ -125,8 +124,6 @@ int ldb_zset_iterator_next(ldb_zset_iterator_t *iterator){
             retval = 0;
         }
 
-        ldb_slice_destroy(slice_name);
-        ldb_slice_destroy(slice_key);
         if(repeat ==0){
             goto end;
         }

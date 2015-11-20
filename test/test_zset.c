@@ -101,7 +101,7 @@ static void test_zset(ldb_context_t* context){
     int64_t sstart = -7000000;
     int64_t send = 0x000000000000FFFF;
     assert(zset_count(context, slice_name1, sstart, send, &count) == LDB_OK);
-    printf("zset_count %ld  members between (%ld and %ld]\n\n", count, sstart, send);
+    printf("zset_count %ld  members between [%ld and %ld)\n\n", count, sstart, send);
 
 
     uint64_t nextver8 = nextver7 + 100000;
@@ -116,24 +116,57 @@ static void test_zset(ldb_context_t* context){
     printf("zset_rank result=%ld\n", rank);
 
     assert(zset_count(context, slice_name1, sstart, send, &count) == LDB_OK);
-    printf("zset_count %ld  members between (%ld and %ld]\n\n", count, sstart, send);
+    printf("zset_count %ld  members between [%ld and %ld)\n\n", count, sstart, send);
 
     uint64_t nextver9 = nextver8 + 100000;
     uint32_t vercare9 = 0x00000002;
     ldb_meta_t *meta9 = ldb_meta_create(vercare9, 0, nextver9);
     uint64_t deleted = 0;
-    assert(zset_del_range_by_rank(context, slice_name1, meta9, 0, 2, &deleted)== LDB_OK);
-    printf("after del_range_by_rank[0,2) %s\n", zset_key5);
+    int rank_start = 0, rank_end = 1;
+    assert(zset_del_range_by_rank(context, slice_name1, meta9, rank_start, rank_end, &deleted)== LDB_OK); //TODO LAT
+    printf("after del_range_by_rank[%d,%d)  deleted = %lu\n",rank_start, rank_end, deleted);
 
     rank = 0;
     assert(zset_rank(context, slice_name1, slice_key2, 0 , &rank) == LDB_OK);
     printf("zset_rank result=%ld\n", rank);
 
 
+    
 
+    count = 0;
     assert(zset_count(context, slice_name1, sstart, send, &count) == LDB_OK);
-    printf("zset_count %ld  members between (%ld and %ld]\n\n", count, sstart, send);
+    printf("zset_count %ld  members between [%ld and %ld)\n\n", count, sstart, send);
 
+    uint64_t nextver10 = nextver9 + 100000;
+    uint32_t vercare10 = 0x00000002;
+    ldb_meta_t *meta10 = ldb_meta_create(vercare10, 0, nextver9);
+    deleted = 0;
+    int64_t score_start = -170, score_end = -69;
+    assert(zset_del_range_by_score(context, slice_name1, meta10, score_start, score_end, &deleted)== LDB_OK); //TODO LAT
+    printf("after del_range_by_score[%ld,%ld)  deleted = %lu\n",score_start, score_end,  deleted);
+
+
+    rank = 0;
+    assert(zset_rank(context, slice_name1, slice_key2, 0 , &rank) == LDB_OK);
+    printf("zset_rank result=%ld\n", rank);
+
+
+    count = 0;
+    assert(zset_count(context, slice_name1, sstart, send, &count) == LDB_OK);
+    printf("zset_count %ld  members between [%ld and %ld)\n\n", count, sstart, send);
+
+
+    //range and scan
+    ldb_list_t *keylist11 = NULL, *metalist11 = NULL;
+    assert(zset_range(context, slice_name1, 0, 10, 0, &keylist11, &metalist11) == LDB_OK); //TODO LAT
+    ldb_list_iterator_t *iterator11 = ldb_list_iterator_create(keylist11);
+    while(1){
+        ldb_list_node_t *node_key = ldb_list_next(&iterator11);
+        if(node_key == NULL){
+            break;
+        }
+        printf("zset_range result key=%s, score=%ld\n", ldb_slice_data(node_key->data_), node_key->value_);  
+    }
 
 }
 
