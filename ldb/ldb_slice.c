@@ -20,11 +20,12 @@ ldb_slice_t* ldb_slice_create(const char* data, size_t size){
     slice->data_ = NULL;
     slice->size_ = 0;
   }else{
-    slice->data_ = lmalloc(size);
+    slice->data_ = lmalloc(size + 1);
     memcpy(slice->data_, data, size);
+    slice->data_[size] = '\0';
     slice->size_ = size;
   }
-  slice->capacity_ = slice->size_;
+  slice->capacity_ = slice->size_ + 1;
   return slice;
 }
 
@@ -37,8 +38,8 @@ void ldb_slice_destroy(ldb_slice_t* slice){
 
 static size_t ensure_capacity(size_t size){
   size_t capacity = size;
-  if(size >16){
-    capacity += (size >>1);
+  if(capacity>16){
+    capacity += (size>>1);
   }else{
     capacity += size;
   }
@@ -47,25 +48,27 @@ static size_t ensure_capacity(size_t size){
 
 void ldb_slice_push_back(ldb_slice_t* slice, const char* data, size_t size){
   if(size > 0){
-    if(slice->capacity_ < (slice->size_ + size)){
-      slice->capacity_ = ensure_capacity(slice->size_ + size);
+    if(slice->capacity_ < (slice->size_ + size + 1)){
+      slice->capacity_ = ensure_capacity(slice->size_ + size + 1);
       slice->data_ = lrealloc(slice->data_, slice->capacity_);
     }
     memcpy(slice->data_ + slice->size_, data, size);
     slice->size_ += size;
+    slice->data_[slice->size_] = '\0';
   }
 }
 
 
 void ldb_slice_push_front(ldb_slice_t* slice, const char* data, size_t size){
   if(size > 0){
-    if(slice->capacity_ < (slice->size_ + size)){
-      slice->capacity_ = ensure_capacity(slice->size_ + size);
+    if(slice->capacity_ < (slice->size_ + size + 1)){
+      slice->capacity_ = ensure_capacity(slice->size_ + size + 1);
       slice->data_ = lrealloc(slice->data_, slice->capacity_);
     }
     memmove(slice->data_ + size, slice->data_, slice->size_);
     memcpy(slice->data_, data, size);
     slice->size_ += size;
+    slice->data_[slice->size_] = '\0';
   }
 }
 

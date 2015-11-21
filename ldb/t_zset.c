@@ -281,14 +281,12 @@ int zset_del_range_by_rank(ldb_context_t* context, const ldb_slice_t* name,
   }
   if(rank_end >= (int)size){
     rank_end = (int)(size - 1);
+    limit = rank_end - rank_start + 10;
+  }else{
+    limit = rank_end - rank_start ;
   }
   offset = rank_start;
-  limit = rank_end - rank_start;
   if(zrange(context, name, offset, limit, 0, &iterator)<0){
-    retval = LDB_OK_RANGE_HAVE_NONE;
-    goto end;
-  }
-  if(!ldb_zset_iterator_valid(iterator)){
     retval = LDB_OK_RANGE_HAVE_NONE;
     goto end;
   }
@@ -296,22 +294,29 @@ int zset_del_range_by_rank(ldb_context_t* context, const ldb_slice_t* name,
   (*deleted) = 0;
   do{
     if((*deleted)==limit){
-      goto end;
+      break;
     }
-    ldb_slice_t *slice_key = NULL;
-    ldb_slice_t *key = NULL;
-    ldb_zset_iterator_key(iterator, &slice_key);
-    if(decode_zscore_key( ldb_slice_data(slice_key),
-                       ldb_slice_size(slice_key),
-                       NULL,
-                       &key,
-                       NULL)== 0){ 
-      if(zset_del(context, name, key, meta) == LDB_OK){
-        *deleted += 1;
+    if(!ldb_zset_iterator_valid(iterator)){
+      break;
+    }
+    size_t raw_vlen = 0;
+    const char* raw_val = ldb_zset_iterator_val_raw(iterator, &raw_vlen);
+    uint8_t type = leveldb_decode_fixed8(raw_val);
+    if((type & LDB_VALUE_TYPE_VAL) && !(type & LDB_VALUE_TYPE_LAT)){
+      size_t raw_klen = 0;
+      const char* raw_key = ldb_zset_iterator_key_raw(iterator, &raw_klen);
+      ldb_slice_t *key = NULL;
+      if(decode_zscore_key( raw_key,
+                            raw_klen,
+                            NULL,
+                            &key,
+                            NULL)== 0){ 
+        if(zset_del(context, name, key, meta) == LDB_OK){
+          *deleted += 1;
+        }
+        ldb_slice_destroy(key);
       }
-      ldb_slice_destroy(key);
     }
-    ldb_slice_destroy(slice_key);
   }while(!ldb_zset_iterator_next(iterator));
 
   retval = LDB_OK;
@@ -332,27 +337,35 @@ int zset_del_range_by_score(ldb_context_t* context, const ldb_slice_t* name,
   }
 
   (*deleted) = 0;
-  int not_stop = 1;
   do{
-    ldb_slice_t *slice_key=NULL, *key = NULL;
-    int64_t value = 0;
-    ldb_zset_iterator_key(iterator, &slice_key);
-    if(decode_zscore_key(ldb_slice_data(slice_key),
-                         ldb_slice_size(slice_key),
-                         NULL,
-                         &key,
-                         &value) == 0){ 
-      if(value < score_end){
-        if(zset_del(context, name, key, meta) == LDB_OK){
-          *deleted += 1;
-        }
-      }else{
-        not_stop = 0;
-      }
-      ldb_slice_destroy(key);
+    if(!ldb_zset_iterator_valid(iterator)){
+      break;
     }
-    ldb_slice_destroy(slice_key);
-  }while(not_stop && !ldb_zset_iterator_next(iterator));
+    size_t raw_vlen = 0;
+    const char* raw_val = ldb_zset_iterator_val_raw(iterator, &raw_vlen);
+    uint8_t type = leveldb_decode_fixed8(raw_val);
+    if((type & LDB_VALUE_TYPE_VAL) && !(type & LDB_VALUE_TYPE_LAT)){
+      size_t raw_klen = 0;
+      const char* raw_key = ldb_zset_iterator_key_raw(iterator, &raw_klen);
+      ldb_slice_t *key = NULL;
+      int64_t value = 0;
+      if(decode_zscore_key(raw_key,
+                           raw_klen,
+                           NULL,
+                           &key,
+                           &value) == 0){ 
+        if(value < score_end){
+          if(zset_del(context, name, key, meta) == LDB_OK){
+            *deleted += 1;
+          }
+        }else{
+          ldb_slice_destroy(key);
+          break;
+        }
+        ldb_slice_destroy(key);
+      }
+    }
+  }while(!ldb_zset_iterator_next(iterator));
 
   retval = LDB_OK;
 
@@ -416,7 +429,6 @@ int zset_rank(ldb_context_t* context, const ldb_slice_t* name,
   ldb_slice_t *slice_key = NULL;  
   uint64_t tmp = 0;
   while(1){
-
     int64_t score = 0;
     size_t raw_klen = 0;
     const char* raw_key = ldb_zset_iterator_key_raw(iterator, &raw_klen);
@@ -516,9 +528,11 @@ int zset_range(ldb_context_t* context, const ldb_slice_t* name,
   }
   if(rank_end >= (int)size){
     rank_end = (int)(size - 1);
+    limit = rank_end - rank_start + 10;
+  }else{
+    limit = rank_end - rank_start + 1;
   }
   offset = rank_start;
-  limit = rank_end - rank_start;
   ldb_zset_iterator_t *iterator = NULL;
   if(zrange(context, name, offset, limit, reverse, &iterator)<0){
     retval = LDB_OK_RANGE_HAVE_NONE;
@@ -526,33 +540,46 @@ int zset_range(ldb_context_t* context, const ldb_slice_t* name,
   }
   ldb_list_t *keylist = ldb_list_create();
   ldb_list_t *metlist = ldb_list_create();
-  do{
-    ldb_slice_t *slice_key = NULL, *slice_val = NULL,  *slice_node = NULL;
-    int64_t value = 0;
-    ldb_zset_iterator_key(iterator, &slice_key);
-    if(decode_zscore_key( ldb_slice_data(slice_key),
-                       ldb_slice_size(slice_key),
-                       NULL,
-                       &slice_node,
-                       &value)==0){ 
-      //first node
-      ldb_list_node_t* key_node = ldb_list_node_create();
-      key_node->type_ = LDB_LIST_NODE_TYPE_SLICE;
-      key_node->value_ = value;
-      key_node->data_ = slice_node;
-      rpush_ldb_list_node(keylist, key_node);
-      //second
-      ldb_zset_iterator_val(iterator, &slice_val);
-      uint64_t version = leveldb_decode_fixed64(ldb_slice_data(slice_val));
-      ldb_list_node_t* met_node = ldb_list_node_create();
-      met_node->type_ = LDB_LIST_NODE_TYPE_BASE;
-      met_node->value_ = version;
-      met_node->data_ = NULL;
-      rpush_ldb_list_node(metlist, met_node);
+  while(1){
+    if(!ldb_zset_iterator_valid(iterator)){
+      break;
     }
-    ldb_slice_destroy(slice_key);
-    ldb_slice_destroy(slice_val);
-  }while(!ldb_zset_iterator_next(iterator));
+    size_t raw_vlen = 0;
+    const char* raw_val = ldb_zset_iterator_val_raw(iterator, &raw_vlen);
+    assert(raw_vlen >= LDB_VAL_META_SIZE);
+    uint8_t type = leveldb_decode_fixed8(raw_val);
+    if((type & LDB_VALUE_TYPE_VAL)&& !(type & LDB_VALUE_TYPE_LAT)){
+
+      ldb_slice_t *key = NULL;
+      int64_t value = 0;
+      size_t raw_klen = 0;
+      const char* raw_key = ldb_zset_iterator_key_raw(iterator, &raw_klen);
+
+      if(decode_zscore_key( raw_key,
+                            raw_klen,
+                            NULL,
+                            &key,
+                            &value)==0){ 
+        //first node
+        ldb_list_node_t* key_node = ldb_list_node_create();
+        key_node->type_ = LDB_LIST_NODE_TYPE_SLICE;
+        key_node->value_ = value;
+        key_node->data_ = key;
+        rpush_ldb_list_node(keylist, key_node);
+        //second
+        uint64_t version = leveldb_decode_fixed64(raw_val + sizeof(uint8_t));
+        ldb_list_node_t* met_node = ldb_list_node_create();
+        met_node->type_ = LDB_LIST_NODE_TYPE_BASE;
+        met_node->value_ = version;
+        met_node->data_ = NULL;
+        rpush_ldb_list_node(metlist, met_node);
+      }
+    }
+    if(ldb_zset_iterator_next(iterator)){
+      break;
+    }
+  }
+
   *pkeylist = keylist;
   *pmetalist = metlist;
   ldb_zset_iterator_destroy(iterator);
@@ -574,33 +601,50 @@ int zset_scan(ldb_context_t* context, const ldb_slice_t* name,
 
   ldb_list_t *keylist = ldb_list_create();
   ldb_list_t *metlist = ldb_list_create();
-  do{
-    ldb_slice_t *slice_key, *slice_val, *slice_name, *slice_node = NULL;
-    int64_t value = 0;
-    ldb_zset_iterator_key(iterator, &slice_key);
-    if(decode_zscore_key( ldb_slice_data(slice_key),
-                       ldb_slice_size(slice_key),
-                       &slice_name,
-                       &slice_node,
-                       &value) == 0){
-      //first
-      ldb_list_node_t* key_node = ldb_list_node_create();
-      key_node->type_ = LDB_LIST_NODE_TYPE_SLICE;
-      key_node->value_ = value;
-      key_node->data_ = slice_node;
-      rpush_ldb_list_node(keylist, key_node);
-      //second
-      ldb_zset_iterator_val(iterator, &slice_val);
-      uint64_t version = leveldb_decode_fixed64(ldb_slice_data(slice_val));
-      ldb_list_node_t* met_node = ldb_list_node_create();
-      met_node->type_ = LDB_LIST_NODE_TYPE_BASE;
-      met_node->value_ = version;
-      met_node->data_ = NULL;
-      rpush_ldb_list_node(metlist, met_node);
+  while(1){
+    if(!ldb_zset_iterator_valid(iterator)){
+      break;
     }
-    ldb_slice_destroy(slice_key);
-    ldb_slice_destroy(slice_val);
-  }while(!ldb_zset_iterator_next(iterator));
+    size_t raw_vlen = 0;
+    const char* raw_val = ldb_zset_iterator_val_raw(iterator, &raw_vlen);
+    assert(raw_vlen >= LDB_VAL_META_SIZE);
+    uint8_t type = leveldb_decode_fixed8(raw_val);
+    if((type & LDB_VALUE_TYPE_VAL)&& !(type & LDB_VALUE_TYPE_LAT)){
+
+      ldb_slice_t *key = NULL;
+      int64_t value = 0;
+      size_t raw_klen = 0;
+      const char* raw_key = ldb_zset_iterator_key_raw(iterator, &raw_klen);
+
+      if(decode_zscore_key( raw_key,
+                            raw_klen,
+                            NULL,
+                            &key,
+                            &value)==0){ 
+        if(value < score_end){
+          //first node
+          ldb_list_node_t* key_node = ldb_list_node_create();
+          key_node->type_ = LDB_LIST_NODE_TYPE_SLICE;
+          key_node->value_ = value;
+          key_node->data_ = key;
+          rpush_ldb_list_node(keylist, key_node);
+          //second
+          uint64_t version = leveldb_decode_fixed64(raw_val + sizeof(uint8_t));
+          ldb_list_node_t* met_node = ldb_list_node_create();
+          met_node->type_ = LDB_LIST_NODE_TYPE_BASE;
+          met_node->value_ = version;
+          met_node->data_ = NULL;
+          rpush_ldb_list_node(metlist, met_node);
+        }else{
+          ldb_slice_destroy(key);
+          break;
+        }
+      }
+    }
+    if(ldb_zset_iterator_next(iterator)){
+      break;
+    }
+  }
 
   *pkeylist = keylist;
   *pmetalist = metlist;
