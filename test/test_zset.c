@@ -158,7 +158,7 @@ static void test_zset(ldb_context_t* context){
 
     //range and scan
     ldb_list_t *keylist11 = NULL, *metalist11 = NULL;
-    assert(zset_range(context, slice_name1, 0, -2, 0, &keylist11, &metalist11) == LDB_OK); 
+    assert(zset_range(context, slice_name1, 0, -1, 0, &keylist11, &metalist11) == LDB_OK); 
     ldb_list_iterator_t *iterator11 = ldb_list_iterator_create(keylist11);
     while(1){
         ldb_list_node_t *node_key = ldb_list_next(&iterator11);
@@ -169,7 +169,7 @@ static void test_zset(ldb_context_t* context){
     }
 
     ldb_list_t *keylist12 = NULL, *metalist12 = NULL;
-    assert(zset_scan(context, slice_name1, 5699, -1, 0, &keylist12, &metalist12) == LDB_OK); 
+    assert(zset_scan(context, slice_name1, 5699, 20000, 0, &keylist12, &metalist12) == LDB_OK); 
     ldb_list_iterator_t *iterator12 = ldb_list_iterator_create(keylist12);
     while(1){
         ldb_list_node_t *node_key = ldb_list_next(&iterator12);

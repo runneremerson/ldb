@@ -429,6 +429,10 @@ int zset_rank(ldb_context_t* context, const ldb_slice_t* name,
   ldb_slice_t *slice_key = NULL;  
   uint64_t tmp = 0;
   while(1){
+    if(!ldb_zset_iterator_valid(iterator)){
+      retval = LDB_OK_NOT_EXIST;
+      goto end;
+    }
     int64_t score = 0;
     size_t raw_klen = 0;
     const char* raw_key = ldb_zset_iterator_key_raw(iterator, &raw_klen);
@@ -496,7 +500,11 @@ int zset_count(ldb_context_t* context, const ldb_slice_t* name,
     (*count) += 1;
   } 
   while(!ldb_zset_iterator_next(iterator)){
-    (*count) += 1;
+    raw_vlen = 0;
+    raw_key = ldb_zset_iterator_key_raw(iterator, &raw_klen);
+    if(decode_zscore_key(raw_key, raw_klen, NULL, NULL, NULL) == 0){
+      (*count) += 1; 
+    }
   }
   retval = LDB_OK;
 

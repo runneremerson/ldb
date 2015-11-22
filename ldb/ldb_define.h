@@ -23,6 +23,8 @@
 #define LDB_DATA_TYPE_ZSET                   "s"
 #define LDB_DATA_TYPE_ZSCORE                 "z"
 #define LDB_DATA_TYPE_ZSIZE                  "Z"
+#define LDB_DATA_TYPE_SET                    "e"
+#define LDB_DATA_TYPE_SSIZE                  "E"
 
 
 #define LDB_LIST_NODE_TYPE_NONE              0

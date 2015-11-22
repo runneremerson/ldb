@@ -78,7 +78,7 @@ void encode_hash_key(const char* name, size_t namelen, const char* key, size_t k
 
 int decode_hash_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t **pslice_name, ldb_slice_t **pslice_key){
   int retval = 0;
-  ldb_slice_t *slice_name, *slice_key = NULL;
+  ldb_slice_t *slice_name = NULL, *slice_key = NULL;
   ldb_bytes_t *bytes = ldb_bytes_create(ldbkey, ldbkeylen);
 
   if(compare_with_length(ldbkey, strlen(LDB_DATA_TYPE_HASH), LDB_DATA_TYPE_HASH, strlen(LDB_DATA_TYPE_HASH))!=0){
@@ -106,8 +106,16 @@ err:
 
 
 nor:
-  *pslice_name = slice_name;
-  *pslice_key = slice_key;
+  if(pslice_name != NULL){
+    *pslice_name = slice_name;
+  }else{
+    ldb_slice_destroy(slice_name);
+  }
+  if(pslice_key != NULL){
+    *pslice_key = slice_key;
+  }else{
+    ldb_slice_destroy(slice_key);
+  }
   retval = 0;
   goto end;
 
@@ -118,7 +126,7 @@ end:
 
 int hash_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, ldb_slice_t** pslice, ldb_meta_t** pmeta){
   int retval = 0;
-  char *val, *errptr = NULL;
+  char *val = NULL, *errptr = NULL;
   size_t vallen = 0;
   leveldb_readoptions_t *readoptions = leveldb_readoptions_create();
   ldb_slice_t* slice_key = NULL;
@@ -127,7 +135,7 @@ int hash_get(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t*
   leveldb_readoptions_destroy(readoptions);
   ldb_slice_destroy(slice_key);
   if(errptr!=NULL){
-    fprintf(stderr, "leveldb_get fail %s.\n", errptr);
+    fprintf(stderr, "%s leveldb_get fail %s.\n", __func__, errptr);
     leveldb_free(errptr);
     retval = LDB_ERR;
     goto end;
@@ -203,11 +211,12 @@ int hash_getall(ldb_context_t* context, const ldb_slice_t* name, ldb_list_t** pk
   *pvallist = ldb_list_create();
   *pmetalist = ldb_list_create();
   do{
-    ldb_slice_t *slice_key, *key, *val, *slice_name = NULL;
-    ldb_hash_iterator_key(iterator, &slice_key);
-    if(decode_hash_key(ldb_slice_data(slice_key),
-                       ldb_slice_size(slice_key),
-                       &slice_name,
+    ldb_slice_t *key = NULL, *val = NULL;
+    size_t raw_klen = 0;
+    const char* raw_key = ldb_hash_iterator_key_raw(iterator, &raw_klen);
+    if(decode_hash_key(raw_key,
+                       raw_klen,
+                       NULL,
                        &key) == 0){
       ldb_meta_t* meta = NULL;
       if(hash_get(context, name, key, &val, &meta) == LDB_OK){
@@ -227,7 +236,6 @@ int hash_getall(ldb_context_t* context, const ldb_slice_t* name, ldb_list_t** pk
       }  
       ldb_meta_destroy(meta);
     }
-    ldb_slice_destroy(slice_key);
   }while(!ldb_hash_iterator_next(iterator));
   retval = LDB_OK;
   
@@ -307,7 +315,7 @@ end:
 
 
 int hash_set(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta){
-    int retval, ret = 0;
+    int retval = 0, ret = 0;
 
     ret = hset_one(context, name, key, value, meta); 
     if(ret >=0){
@@ -320,7 +328,7 @@ int hash_set(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t*
         char *errptr = NULL;
         ldb_context_writebatch_commit(context, &errptr);
         if(errptr != NULL){
-            fprintf(stderr, "leveldb_write fail %s.\n", errptr);
+            fprintf(stderr, "%s leveldb_write fail %s.\n", __func__, errptr);
             leveldb_free(errptr);
             retval = LDB_ERR;
             goto  end;
@@ -404,7 +412,7 @@ int hash_exists(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice
 
 int hash_length(ldb_context_t* context, const ldb_slice_t* name, uint64_t* length){
   int retval = 0;
-  char *val, *errptr = NULL;
+  char *val = NULL, *errptr = NULL;
   size_t vallen = 0;
   leveldb_readoptions_t *readoptions = leveldb_readoptions_create();
   ldb_slice_t* slice_key = NULL;
@@ -413,7 +421,7 @@ int hash_length(ldb_context_t* context, const ldb_slice_t* name, uint64_t* lengt
   leveldb_readoptions_destroy(readoptions);
   ldb_slice_destroy(slice_key);
   if(errptr!=NULL){
-    fprintf(stderr, "leveldb_get fail %s.\n", errptr);
+    fprintf(stderr, "%s leveldb_get fail %s.\n", __func__, errptr);
     leveldb_free(errptr);
     retval = LDB_ERR;
     goto end;
@@ -422,6 +430,10 @@ int hash_length(ldb_context_t* context, const ldb_slice_t* name, uint64_t* lengt
     assert(vallen >= (sizeof(uint64_t) + LDB_VAL_META_SIZE));
     uint8_t type = leveldb_decode_fixed8(val);
     if(type & LDB_VALUE_TYPE_VAL){
+      if(type & LDB_VALUE_TYPE_LAT){
+        retval = LDB_OK_NOT_EXIST;
+        goto end;
+      }
       *length = leveldb_decode_fixed64(val + LDB_VAL_META_SIZE);
       retval = LDB_OK;
     }else{
@@ -468,7 +480,7 @@ int hash_incr(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t
     char *errptr = NULL;
     ldb_context_writebatch_commit(context, &errptr);
     if(errptr != NULL){
-      fprintf(stderr, "leveldb_write fail %s.\n", errptr);
+      fprintf(stderr, "%s leveldb_write fail %s.\n", __func__, errptr);
       leveldb_free(errptr);
       retval = LDB_ERR;
       goto  end;
@@ -499,7 +511,7 @@ int hash_del(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t*
             char *errptr = NULL;
             ldb_context_writebatch_commit(context, &errptr);
             if(errptr != NULL){
-                fprintf(stderr, "leveldb_write fail %s.\n", errptr);
+                fprintf(stderr, "%s leveldb_write fail %s.\n", errptr, __func__);
                 leveldb_free(errptr);
                 retval = LDB_ERR;
                 goto  end;
@@ -521,15 +533,15 @@ end:
 static int hset_one(ldb_context_t* context, const ldb_slice_t* name,
                     const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta){
   if(ldb_slice_size(name)==0 || ldb_slice_size(key)==0){
-    fprintf(stderr, "empty name or key!");
+    fprintf(stderr, "%s empty name or key!", __func__);
     return 0;
   }
   if(ldb_slice_size(name) > LDB_DATA_TYPE_KEY_LEN_MAX){
-    fprintf(stderr, "name too long!");
+    fprintf(stderr, "%s name too long!", __func__);
     return -1;
   }
   if(ldb_slice_size(key) > LDB_DATA_TYPE_KEY_LEN_MAX){
-    fprintf(stderr, "name too long!");
+    fprintf(stderr, "%s name too long!", __func__);
     return -1;
   }
   int retval = 0;
@@ -578,11 +590,11 @@ static int hdel_one(ldb_context_t* context, const ldb_slice_t* name,
                     const ldb_slice_t* key, const ldb_meta_t* meta){
 
   if(ldb_slice_size(name) > LDB_DATA_TYPE_KEY_LEN_MAX){
-    fprintf(stderr, "name too long!");
+    fprintf(stderr, "%s name too long!", __func__);
     return -1;
   }
   if(ldb_slice_size(key) > LDB_DATA_TYPE_KEY_LEN_MAX){
-    fprintf(stderr, "name too long!");
+    fprintf(stderr, "%s key too long!", __func__);
     return -1;
   }
 
