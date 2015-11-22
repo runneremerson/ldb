@@ -40,6 +40,7 @@ static void test_set(ldb_context_t* context){
     uint64_t nextver4 = nextver3 + 100000;
     ldb_meta_t *meta4 = ldb_meta_create(0, 0, nextver4);
     assert(set_rem(context, slice_name1, slice_key3, meta4) == LDB_OK);
+    assert(set_ismember(context, slice_name1, slice_key3) == LDB_OK_NOT_EXIST);
 
 
     length = 0;
@@ -75,8 +76,8 @@ static void test_set(ldb_context_t* context){
             break;
         }
         printf("set_members result key=%s\n", ldb_slice_data(node_key->data_));  
+        assert(set_ismember(context, slice_name1, node_key->data_)==LDB_OK);
     }
-
 }
 
 

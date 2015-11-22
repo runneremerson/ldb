@@ -15,6 +15,7 @@
 #include "t_string.h"
 #include "t_zset.h"
 #include "t_hash.h"
+#include "t_set.h"
 
 #include <leveldb/c.h>
 #include <string.h>
@@ -85,8 +86,9 @@ static int decode_slice_expire(const ldb_slice_t* slice_expire, uint64_t expire,
 }
 
 static char* malloc_and_copy(const char* data, size_t size){
-  char* result = lmalloc(size);
+  char* result = lmalloc(size + 1);
   memcpy(result, data, size); 
+  result[size] = '\0';
   return result;
 }
 
@@ -907,6 +909,161 @@ end:
     ldb_slice_destroy(slice_key);
 }
 
+int ldb_sadd(ldb_context_t* context,
+                char* name,
+                size_t namelen,
+                uint64_t version,
+                int vercare,
+                value_item_t* keys,
+                size_t keynum,
+                int **results){
+  int retval = 0;
+  ldb_slice_t *slice_name = ldb_slice_create(name, namelen);
+  *results = (int*)lmalloc(sizeof(int) * keynum);
+  size_t now = 0; 
+  while(now < keynum){
+    ldb_meta_t *meta = ldb_meta_create(vercare, version, keys[now].version_);
+    ldb_slice_t *slice_key = ldb_slice_create(keys[now].data_, keys[now].data_len_);
+    (*results)[now] = set_add(context, slice_name, slice_key, meta);
+    ldb_meta_destroy(meta);
+    ldb_slice_destroy(slice_key);
+    ++now;
+  }
+  retval = LDB_OK;
+
+end:
+  ldb_slice_destroy(slice_name);
+  return retval;
+}
+
+int ldb_smembers(ldb_context_t* context,
+                 char* name,
+                 size_t namelen,
+                 value_item_t** items,
+                 size_t* itemnum){
+
+    int retval = 0;
+    ldb_slice_t *slice_name = ldb_slice_create(name, namelen);
+    ldb_list_t *keylist, *metalist = NULL;
+    retval = set_members(context, slice_name, &keylist, &metalist);
+    if( retval != LDB_OK ){
+        goto end;
+    }
+    *itemnum = keylist->length_;
+    *items = create_value_item_array(*itemnum);
+    ldb_list_iterator_t *keyiterator = ldb_list_iterator_create(keylist);
+    ldb_list_iterator_t *metiterator = ldb_list_iterator_create(metalist);
+    size_t now = 0;
+    while(1){
+        ldb_list_node_t* node_key = ldb_list_next(&keyiterator);
+        if(node_key == NULL){
+            retval = LDB_OK;
+            break;
+        }
+        ldb_list_node_t* node_met = ldb_list_next(&metiterator);
+        assert(node_met != NULL);
+        size_t key_len = ldb_slice_size((ldb_slice_t*)node_key->data_);
+        (*items)[now].data_len_ = key_len;
+        (*items)[now].data_ = malloc_and_copy(ldb_slice_data((ldb_slice_t*)node_key->data_), key_len);
+        (*items)[now].version_ = node_met->value_;
+        ++now;
+    }
+    ldb_list_iterator_destroy(keyiterator);
+    ldb_list_iterator_destroy(metiterator);
+
+end:
+    ldb_slice_destroy(slice_name);
+    ldb_list_destroy(keylist);
+    ldb_list_destroy(metalist);
+    return retval;
+}
+
+int ldb_spop(ldb_context_t* context,
+             char* name,
+             size_t namelen,
+             uint64_t version,
+             int vercare,
+             value_item_t** items,
+             uint64_t nextver){
+    int retval = 0;
+    ldb_slice_t *slice_name = ldb_slice_create(name, namelen);
+    vercare = (vercare | 0x00000002);
+    ldb_meta_t *meta = ldb_meta_create(vercare, version, nextver);
+    ldb_slice_t *key = NULL;
+    *items = create_value_item_array(1);
+    retval = set_pop(context, slice_name, meta, &key);
+    if( retval != LDB_OK ){
+        goto end; 
+    }
+    size_t key_len = ldb_slice_size(key);
+    (*items)[0].data_len_ = key_len;
+    (*items)[0].data_ = malloc_and_copy(ldb_slice_data(key), key_len);
+    (*items)[0].version_ = nextver;
+
+end:
+    ldb_slice_destroy(slice_name);
+    ldb_slice_destroy(key);
+    ldb_meta_destroy(meta);
+    return retval;
+}
+
+int ldb_srem(ldb_context_t* context,
+             char* name,
+             size_t namelen,
+             uint64_t version,
+             int vercare,
+             value_item_t* keys,
+             size_t keynum,
+             int **results){
+
+  int retval = 0;
+  ldb_slice_t *slice_name = ldb_slice_create(name, namelen);
+  *results = (int*)lmalloc(sizeof(int) * keynum);
+  size_t now = 0; 
+  while(now < keynum){
+    ldb_meta_t *meta = ldb_meta_create(vercare, version, keys[now].version_);
+    ldb_slice_t *slice_key = ldb_slice_create(keys[now].data_, keys[now].data_len_);
+    (*results)[now] = set_rem(context, slice_name, slice_key, meta);
+    ldb_meta_destroy(meta);
+    ldb_slice_destroy(slice_key);
+    ++now;
+  }
+  retval = LDB_OK;
+
+end:
+  ldb_slice_destroy(slice_name);
+  return retval;
+}
+
+int ldb_scard(ldb_context_t* context,
+              char* name,
+              size_t namelen,
+              uint64_t *count){
+    int retval = 0;
+    ldb_slice_t *slice_name = ldb_slice_create(name, namelen);
+    retval = set_card(context, slice_name, count);
+
+end:
+    ldb_slice_destroy(slice_name);
+    return retval;
+}
+
+int ldb_sismember(ldb_context_t* context,
+                  char* name,
+                  size_t namelen,
+                  char* key,
+                  size_t keylen){
+    int retval = 0;
+    ldb_slice_t *slice_name = ldb_slice_create(name, namelen);
+    ldb_slice_t *slice_key = ldb_slice_create(key, keylen);
+    retval = set_ismember(context, slice_name, slice_key);
+
+end:
+    ldb_slice_destroy(slice_name);
+    ldb_slice_destroy(slice_key);
+    return retval;
+}
+
 int ldb_zscore(ldb_context_t* context,
               char* name,
               size_t namelen,
@@ -1064,7 +1221,7 @@ end:
 int ldb_zadd(ldb_context_t* context,
              char* name,
              size_t namelen,
-             uint64_t lastver,
+             uint64_t version,
              int vercare,
              value_item_t* keys,
              int64_t* scores,
@@ -1075,7 +1232,7 @@ int ldb_zadd(ldb_context_t* context,
   *results = (int*)lmalloc(sizeof(int) * keynum);
   size_t now = 0; 
   while(now < keynum){
-    ldb_meta_t *meta = ldb_meta_create(vercare, lastver, keys[now].version_);
+    ldb_meta_t *meta = ldb_meta_create(vercare, version, keys[now].version_);
     ldb_slice_t *slice_key = ldb_slice_create(keys[now].data_, keys[now].data_len_);
     (*results)[now] = zset_add(context, slice_name, slice_key, meta, scores[now]);
     ldb_meta_destroy(meta);

@@ -204,7 +204,7 @@ end:
   return retval;
 }
 
-int set_add(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, ldb_meta_t* meta){
+int set_add(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta){
     int retval = 0, ret = 0;
 
     ret = sset_one(context, name, key, meta); 
@@ -296,6 +296,16 @@ int set_rem(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* 
     }
 
 end:
+    return retval;
+}
+
+
+int set_ismember(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key){
+    ldb_meta_t *meta = NULL;
+    int retval = sget_one(context, name, key, &meta);
+    if(retval == LDB_OK){
+        ldb_meta_destroy(meta);
+    }
     return retval;
 }
 

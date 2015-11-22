@@ -189,6 +189,50 @@ int ldb_hexists(ldb_context_t* context,
                 char* key,
                 size_t keylen);
 
+//set
+int ldb_sadd(ldb_context_t* context,
+                char* name,
+                size_t namelen,
+                uint64_t version,
+                int vercare,
+                value_item_t* keys,
+                size_t keynum,
+                int **results);
+
+int ldb_smembers(ldb_context_t* context,
+                 char* name,
+                 size_t namelen,
+                 value_item_t** items,
+                 size_t* itemnum);
+
+int ldb_spop(ldb_context_t* context,
+             char* name,
+             size_t namelen,
+             uint64_t version,
+             int vercare,
+             value_item_t** items,
+             uint64_t nextver);
+
+int ldb_srem(ldb_context_t* context,
+             char* name,
+             size_t namelen,
+             uint64_t version,
+             int vercare,
+             value_item_t* keys,
+             size_t keynum,
+             int **results);
+
+int ldb_scard(ldb_context_t* context,
+              char* name,
+              size_t namelen,
+              uint64_t *count);
+
+int ldb_sismember(ldb_context_t* context,
+                  char* name,
+                  size_t namelen,
+                  char* key,
+                  size_t keylen);
+
 
 //zset
 int ldb_zscore(ldb_context_t* context,
@@ -231,7 +275,7 @@ int ldb_zadd(ldb_context_t* context,
              value_item_t* keys,
              int64_t* scores,
              size_t keynum,
-             int** retvals);
+             int** results);
 
 int ldb_zrank(ldb_context_t* context,
               char* name,

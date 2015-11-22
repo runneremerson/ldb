@@ -20,10 +20,12 @@ int set_card(ldb_context_t* context, const ldb_slice_t* name, uint64_t *length);
 
 int set_members(ldb_context_t* context, const ldb_slice_t* name, ldb_list_t** pkeylist, ldb_list_t** pmetalist);
 
-int set_add(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, ldb_meta_t* meta);
+int set_add(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta);
 
 int set_pop(ldb_context_t* context, const ldb_slice_t* name, const ldb_meta_t* meta, ldb_slice_t** pslice);
 
 int set_rem(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key, const ldb_meta_t* meta);
+
+int set_ismember(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_t* key);
 
 #endif //LDB_T_SET_H
