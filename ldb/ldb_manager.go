@@ -1035,6 +1035,210 @@ func (manager *LdbManager) HGetAll(key string) (ret int, values map[string]Stora
 	return iRet, members
 }
 
+func (manager *LdbManager) SAdd(key string, values []StorageValueData, meta StorageMetaData) (int, []int) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	valueItems := make([]C.value_item_t, len(values))
+	index := 0
+	for _, v := range values {
+		// value
+		csValue := C.CString(v.Value)
+		defer C.free(unsafe.Pointer(csValue))
+		valueItems[index].data_len_ = C.size_t(len(v.Value))
+		valueItems[index].data_ = csValue
+		valueItems[index].version_ = C.uint64_t(v.Version)
+
+		if v.Version == 0 {
+			log.Errorf("SAdd value %s version %u is zero! return -1", v.Value, v.Version)
+			return -1, nil
+		}
+		index += 1
+	}
+
+	var results *C.int
+	results = (*C.int)(CNULL)
+
+	// set key-values
+	ret := C.ldb_sadd(manager.context, csKey,
+		C.size_t(len(key)),
+		C.uint64_t(meta.Lastversion),
+		C.int(meta.Versioncare),
+		(*C.value_item_t)(unsafe.Pointer(&valueItems[0])),
+		C.size_t(index),
+		&results)
+
+	retArr := make([]int, len(values))
+	if int(ret) == 0 {
+		for i := 0; i < len(values); i += 1 {
+			tmpInt := int(0)
+			ConvertCIntPointer2Go(results, i, &tmpInt)
+			retArr[i] = tmpInt
+		}
+	}
+
+	if unsafe.Pointer(results) != CNULL {
+		C.free(unsafe.Pointer(results))
+	}
+	return int(ret), retArr
+}
+
+func (manager *LdbManager) SMembers(key string) (int, []StorageByteValueData) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	var valueItems *C.value_item_t
+	valueItems = (*C.value_item_t)(CNULL)
+	size := C.size_t(0)
+
+	// get members
+	ret := C.ldb_smembers(manager.context, csKey, C.size_t(len(key)), &valueItems, &size)
+	iRet := int(ret)
+
+	var values []StorageByteValueData
+
+	if iRet == 0 {
+		values = make([]StorageByteValueData, int(size))
+		for i := 0; i < int(size); i += 1 {
+			ConvertCValueItemPointer2GoByte(valueItems, i, &values[i])
+		}
+	}
+
+	FreeValueItems(valueItems, size)
+
+	return iRet, values
+}
+
+func (manager *LdbManager) SPop(key string, meta StorageMetaData) (int, StorageByteValueData) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	log.Errorf("Dont support SPop at present!")
+
+	return -1, EmptyByteValueData()
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	var valueItem *C.value_item_t
+	valueItem = (*C.value_item_t)(CNULL)
+
+	version := StorageVersionType((time.Now().UnixNano() / 1000) << 8)
+
+	ret := C.ldb_spop(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		C.uint64_t(meta.Lastversion),
+		C.int(meta.Versioncare),
+		&valueItem,
+		C.uint64_t(version))
+	iRet := int(ret)
+
+	value := StorageByteValueData{}
+
+	if iRet == 0 {
+		ConvertCValueItemPointer2GoByte(valueItem, 0, &value)
+	}
+
+	FreeValueItems(valueItem, 1)
+
+	return iRet, value
+}
+
+func (manager *LdbManager) SRem(key string, values []StorageValueData, meta StorageMetaData) (int, []int) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	valueItems := make([]C.value_item_t, len(values))
+	index := 0
+	for _, v := range values {
+		// value
+		csValue := C.CString(v.Value)
+		defer C.free(unsafe.Pointer(csValue))
+		valueItems[index].data_len_ = C.size_t(len(v.Value))
+		valueItems[index].data_ = csValue
+		valueItems[index].version_ = C.uint64_t(v.Version)
+
+		index += 1
+	}
+
+	var results *C.int
+	results = (*C.int)(CNULL)
+
+	// set key-values
+	ret := C.ldb_srem(manager.context,
+		csKey,
+		C.size_t(len(key)),
+		C.uint64_t(meta.Lastversion),
+		C.int(meta.Versioncare),
+		(*C.value_item_t)(unsafe.Pointer(&valueItems[0])),
+		C.size_t(index),
+		&results)
+
+	retArr := make([]int, len(values))
+	if int(ret) == 0 {
+		for i := 0; i < len(values); i += 1 {
+			tmpInt := int(0)
+			ConvertCIntPointer2Go(results, i, &tmpInt)
+			retArr[i] = tmpInt
+		}
+	}
+
+	if unsafe.Pointer(results) != CNULL {
+		C.free(unsafe.Pointer(results))
+	}
+
+	return int(ret), retArr
+}
+
+func (manager *LdbManager) SCard(key string) (int, uint64) {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+
+	defer C.free(unsafe.Pointer(csKey))
+
+	cCount := C.uint64_t(0)
+
+	ret := C.ldb_scard(manager.context, csKey, C.size_t(len(key)), &cCount)
+
+	return int(ret), uint64(cCount)
+}
+
+func (manager *LdbManager) SIsMember(key string, value string) int {
+	id := getLockID(key)
+	manager.doLdbKeyLock(id)
+	defer manager.doLdbKeyUnlock(id)
+
+	csKey := C.CString(key)
+	defer C.free(unsafe.Pointer(csKey))
+	csVal := C.CString(value)
+	defer C.free(unsafe.Pointer(csVal))
+
+	ret := C.ldb_sismember(manager.context, csKey, C.size_t(len(key)), csVal, C.size_t(len(value)))
+
+	return int(ret)
+}
+
 func (manager *LdbManager) ZAdd(key string, scoreValues []StorageScoreValueData, meta StorageMetaData) (int, []int) {
 	id := getLockID(key)
 	manager.doLdbKeyLock(id)
