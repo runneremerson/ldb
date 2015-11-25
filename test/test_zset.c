@@ -105,7 +105,7 @@ static void test_zset(ldb_context_t* context){
 
 
     uint64_t nextver8 = nextver7 + 100000;
-    uint32_t vercare8 = 0x00000002;
+    uint32_t vercare8 = 0;
     ldb_meta_t *meta8 = ldb_meta_create(vercare8, 0, nextver8);
     assert(zset_del(context, slice_name1, slice_key5, meta8) == LDB_OK);
     printf("after deleting %s\n", zset_key5);
@@ -119,7 +119,7 @@ static void test_zset(ldb_context_t* context){
     printf("zset_count %ld  members between [%ld and %ld)\n\n", count, sstart, send);
 
     uint64_t nextver9 = nextver8 + 100000;
-    uint32_t vercare9 = 0x00000002;
+    uint32_t vercare9 = 0;
     ldb_meta_t *meta9 = ldb_meta_create(vercare9, 0, nextver9);
     uint64_t deleted = 0;
     int rank_start = 0, rank_end = 1;
@@ -138,7 +138,7 @@ static void test_zset(ldb_context_t* context){
     printf("zset_count %ld  members between [%ld and %ld)\n\n", count, sstart, send);
 
     uint64_t nextver10 = nextver9 + 100000;
-    uint32_t vercare10 = 0x00000002;
+    uint32_t vercare10 = 0;
     ldb_meta_t *meta10 = ldb_meta_create(vercare10, 0, nextver9);
     deleted = 0;
     int64_t score_start = -170, score_end = -69;

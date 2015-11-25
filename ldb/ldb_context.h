@@ -15,7 +15,6 @@ struct ldb_context_t{
     leveldb_snapshot_t*         for_recovering_;
     leveldb_writebatch_t*       batch_;
     leveldb_mutex_t*            mutex_; //protect batch_
-    void*                       expiring_name_;
 };
 
 typedef struct ldb_context_t    ldb_context_t;

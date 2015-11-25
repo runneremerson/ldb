@@ -35,11 +35,15 @@ static int sscan(ldb_context_t* context, const ldb_slice_t* name,
 
 
 
-void encode_ssize_key(const char* name, size_t namelen, const ldb_meta_t* meta, ldb_slice_t** pslice){
+void encode_ssize_key(const char* name, size_t namelen, ldb_slice_t** pslice){
+  ldb_meta_t *meta = ldb_meta_create(LDB_VERSION_CARE_DIRCT, 0, 0);
   ldb_slice_t* slice = ldb_meta_slice_create(meta);
   ldb_slice_push_back(slice, LDB_DATA_TYPE_SSIZE, strlen(LDB_DATA_TYPE_SSIZE));
   ldb_slice_push_back(slice, name, namelen);
   *pslice = slice;
+
+end:
+  ldb_meta_destroy(meta);
 }
 
 int decode_ssize_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice){
@@ -131,7 +135,7 @@ int set_card(ldb_context_t* context, const ldb_slice_t* name, uint64_t *length){
   size_t vallen = 0;
   leveldb_readoptions_t *readoptions = leveldb_readoptions_create();
   ldb_slice_t* slice_key = NULL;
-  encode_ssize_key(ldb_slice_data(name), ldb_slice_size(name), NULL, &slice_key);
+  encode_ssize_key(ldb_slice_data(name), ldb_slice_size(name), &slice_key);
   val = leveldb_get(context->database_, readoptions, ldb_slice_data(slice_key), ldb_slice_size(slice_key), &vallen, &errptr);
   leveldb_readoptions_destroy(readoptions);
   ldb_slice_destroy(slice_key);
@@ -323,7 +327,6 @@ static int set_incr_size(ldb_context_t *context,
   ldb_slice_t* slice_key = NULL;
   encode_ssize_key(ldb_slice_data(name),
                    ldb_slice_size(name),
-                   NULL,
                    &slice_key);
   if(size <= 0){
     ldb_context_writebatch_delete(context,

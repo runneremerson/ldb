@@ -37,11 +37,15 @@ static int zscan(ldb_context_t* context, const ldb_slice_t* name,
         const ldb_slice_t* key, int64_t start, int64_t end, int reverse, ldb_zset_iterator_t **piterator); 
 
 
-void encode_zsize_key(const char* name, size_t namelen, const ldb_meta_t* meta, ldb_slice_t** pslice){
+void encode_zsize_key(const char* name, size_t namelen, ldb_slice_t** pslice){
+  ldb_meta_t *meta = ldb_meta_create(LDB_VERSION_CARE_DIRCT, 0, 0);
   ldb_slice_t* slice = ldb_meta_slice_create(meta);
   ldb_slice_push_back(slice, LDB_DATA_TYPE_ZSIZE, strlen(LDB_DATA_TYPE_ZSIZE));
   ldb_slice_push_back(slice, name, namelen);
   *pslice = slice;
+
+end:
+  ldb_meta_destroy(meta);
 }
 
 int decode_zsize_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice){
@@ -708,7 +712,6 @@ int zset_size(ldb_context_t* context, const ldb_slice_t* name,
   ldb_slice_t *slice_key = NULL;
   encode_zsize_key(ldb_slice_data(name),
                    ldb_slice_size(name),
-                   NULL,
                    &slice_key);
  
   char *val, *errptr = NULL;
@@ -874,7 +877,6 @@ static int zset_incr_size(ldb_context_t *context,
 
   encode_zsize_key(ldb_slice_data(name),
                    ldb_slice_size(name),
-                   NULL,
                    &slice_key);
   if(size <= 0){
     ldb_context_writebatch_delete(context,

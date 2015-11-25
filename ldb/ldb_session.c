@@ -987,7 +987,6 @@ int ldb_spop(ldb_context_t* context,
              uint64_t nextver){
     int retval = 0;
     ldb_slice_t *slice_name = ldb_slice_create(name, namelen);
-    vercare = (vercare | 0x00000002);
     ldb_meta_t *meta = ldb_meta_create(vercare, version, nextver);
     ldb_slice_t *key = NULL;
     *items = create_value_item_array(1);

@@ -25,6 +25,12 @@ test_zset.o: test_zset.c
 test_set.o: test_set.c
 	${CC} ${CFLAGS} -c test_set.c
 
+test_all:
+	test_string
+	test_set
+	test_zset
+	test_hash
+
 clean:
 	rm -rf *.o
 	rm -rf test_string

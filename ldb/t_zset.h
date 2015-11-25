@@ -10,7 +10,7 @@
 #include <stdint.h>
 
 
-void encode_zsize_key(const char* name, size_t namelen, const ldb_meta_t* meta, ldb_slice_t** pslice);
+void encode_zsize_key(const char* name, size_t namelen, ldb_slice_t** pslice);
 int decode_zsize_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice);
 
 void encode_zset_key(const char* name, size_t namelen, const char* key, size_t keylen, const ldb_meta_t* meta, ldb_slice_t** pslice);

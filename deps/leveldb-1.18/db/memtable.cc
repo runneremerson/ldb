@@ -107,123 +107,119 @@ void MemTable::Add(SequenceNumber s, ValueType type,
   //  value_size   : varint32 of value.size() + sizeof(uint8_t) + sizeof(uint64_t) (maybe + sizeof(uint64_t) depends on type)
   //  value bytes  : char[value.size()+sizeof(uint8_t)+sizeof(uint64_t) maybe + sizeof(uint64_t)], include fields-- type and currversion
   ValueType val_type = type;
+
+  size_t key_size = key.size();
+  size_t val_size = value.size() + 1 + 8;
+  size_t mat_size = sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t);
+  assert(key_size > mat_size);
+
+  //decode meta data
+  uint32_t versioncare = DecodeFixed32(key.data());
+  uint64_t lastversion = DecodeFixed64(key.data() + sizeof(uint32_t));
+  uint64_t nextversion = DecodeFixed64(key.data() + sizeof(uint32_t) + sizeof(uint64_t));
   if(type == kTypeValue ){
 
-      size_t key_size = key.size();
-      size_t val_size = value.size() + 1 + 8;
-      size_t mat_size = sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t);
-      assert(key_size > mat_size);
+    uint64_t expiration = DecodeFixed64(key.data() + sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t));
+    if(expiration > 0){
+      val_type = ValueType(val_type | kTypeExpiration);
+      val_size += 8;
+    }
 
-      //decode meta data
-      uint32_t versioncare = DecodeFixed32(key.data());
-      uint64_t lastversion = DecodeFixed64(key.data() + sizeof(uint32_t));
-      uint64_t nextversion = DecodeFixed64(key.data() + sizeof(uint32_t) + sizeof(uint64_t));
-      uint64_t expiration = DecodeFixed64(key.data() + sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t));
-      if(expiration > 0){
-        val_type = ValueType(val_type | kTypeExpiration);
-        val_size += 8;
-      }
+    //encode key
+    size_t internal_key_size = key_size - mat_size + 8;
+    const size_t encoded_len =
+    VarintLength(internal_key_size) + internal_key_size +
+    VarintLength(val_size) + val_size;
+    char* buf = arena_.Allocate(encoded_len);
+    char* p = EncodeVarint32(buf, internal_key_size);
+    memcpy(p, (key.data()+mat_size), (key_size-mat_size));
+    p += (key_size-mat_size);
+    EncodeFixed64(p, (s << 8) | type);
+    p += 8;
 
-      //encode key
-      size_t internal_key_size = key_size - mat_size + 8;
-      const size_t encoded_len =
-      VarintLength(internal_key_size) + internal_key_size +
-      VarintLength(val_size) + val_size;
-      char* buf = arena_.Allocate(encoded_len);
-      char* p = EncodeVarint32(buf, internal_key_size);
-      memcpy(p, (key.data()+mat_size), (key_size-mat_size));
-      p += (key_size-mat_size);
-      EncodeFixed64(p, (s << 8) | type);
+    //encode value
+    p = EncodeVarint32(p, val_size);
+    EncodeFixed8(p, val_type);
+    p += 1;
+    EncodeFixed64(p, nextversion);
+    p += 8;
+    if(val_type & kTypeExpiration){
+      EncodeFixed64(p, expiration);
       p += 8;
+    }
+    memcpy(p, value.data(), value.size());
+    assert((p + value.size()) - buf == encoded_len);
 
-      //encode value
-      p = EncodeVarint32(p, val_size);
-      EncodeFixed8(p, val_type);
-      p += 1;
-      EncodeFixed64(p, nextversion);
-      p += 8;
-      if(val_type & kTypeExpiration){
-        EncodeFixed64(p, expiration);
-        p += 8;
-      }
-      memcpy(p, value.data(), value.size());
-      assert((p + value.size()) - buf == encoded_len);
-
-      uint64_t currversion = 0;
-      if(met_!=NULL && nextversion>0){
-          Slice mat_key(key.data()+mat_size, key.size()-mat_size);
-          uint32_t crc32value = crc32c::Value(mat_key.data(), mat_key.size());
-          //printf("crc32value=%u, type=%d\n", crc32value, type);
-          mutexs_[crc32value%kNumKeyMutexs]->Lock();
-          if(versioncare & 0x00000001){
-              if(met_->Query(crc32value, mat_key, &currversion)){
-                  if(currversion == lastversion){
-                      if(met_->Insert(crc32value, mat_key, nextversion)){
-                        table_.Insert(buf);
-                      }
-                  }
-              }
-          }else{
-              if(met_->Insert(crc32value, mat_key, nextversion)){
-                  table_.Insert(buf);
-              }
+    uint64_t currversion = 0;
+    if(met_!=NULL && nextversion>0){
+      Slice mat_key(key.data()+mat_size, key.size()-mat_size);
+      uint32_t crc32value = crc32c::Value(mat_key.data(), mat_key.size());
+      //printf("crc32value=%u, type=%d\n", crc32value, type);
+      mutexs_[uint32_t(crc32value%kNumKeyMutexs)]->Lock();
+      if(versioncare & 0x00000001){
+        if(met_->Query(crc32value, mat_key, &currversion)){
+          if(currversion == lastversion){
+            if(met_->Insert(crc32value, mat_key, nextversion) && !(versioncare & 0x00000004)){
+              table_.Insert(buf);
+            }
           }
-          mutexs_[crc32value%kNumKeyMutexs]->Unlock();
+        }
       }else{
+        if(met_->Insert(crc32value, mat_key, nextversion) && !(versioncare & 0x00000004)){
           table_.Insert(buf);
+        }
+      }
+      mutexs_[crc32value%kNumKeyMutexs]->Unlock();
+      }else{
+        if(!(versioncare & 0x00000004)){
+          table_.Insert(buf);
+        }
       }
   }else if(type == kTypeDeletion){
-      size_t key_size = key.size();
-      size_t val_size = value.size() + 1 + 8; //+ type + nextversion
-      size_t mat_size = sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t);
-      assert(key_size > mat_size);
+    if(nextversion >0 && (versioncare == 0)){
+      type = kTypeValue;
+      val_type = ValueType(type | kTypeLater);
+    }
 
-      //decode meta data
-      uint32_t versioncare = DecodeFixed32(key.data());
-      uint64_t lastversion = DecodeFixed64(key.data() + sizeof(uint32_t));
-      uint64_t nextversion = DecodeFixed64(key.data() + sizeof(uint32_t) + sizeof(uint64_t));
-      if(nextversion >0 && (0x00000002 & versioncare)){
-        type = kTypeValue;
-        val_type = ValueType(type | kTypeLater);
-      }
-
-      //encode key
-      size_t internal_key_size = key_size - mat_size + 8;
-      const size_t encoded_len =
-      VarintLength(internal_key_size) + internal_key_size +
-      VarintLength(val_size) + val_size;
-      char* buf = arena_.Allocate(encoded_len);
-      char* p = EncodeVarint32(buf, internal_key_size);
-      memcpy(p, (key.data()+mat_size), (key_size-mat_size));
-      p += (key_size - mat_size); 
-      EncodeFixed64(p, (s << 8) | type);
-      p += 8;
-      //encode value
-      p = EncodeVarint32(p, val_size);
-      EncodeFixed8(p , val_type);
-      p += 1;
-      EncodeFixed64(p, nextversion);
-      p += 8;
-      memcpy(p, value.data(), value.size());
-      assert((p + value.size()) - buf == encoded_len);
-      if(met_ !=NULL){
-          Slice mat_key(key.data()+mat_size, key.size()-mat_size);
-          uint32_t crc32value = crc32c::Value(mat_key.data(), mat_key.size());
-          //printf("crc32value=%u, type=%d\n", crc32value, type);
-          mutexs_[crc32value%kNumKeyMutexs]->Lock();
-          if(type == kTypeValue){
-            if(met_->Insert(crc32value, mat_key, nextversion)){
-              table_.Insert(buf);
-            }
-          }else if(type == kTypeDeletion ){
-            if(met_->Remove(crc32value, mat_key, nextversion)){ 
-              table_.Insert(buf);
-            }
-          }
-          mutexs_[crc32value%kNumKeyMutexs]->Unlock();
-      }else {
+    //encode key
+    size_t internal_key_size = key_size - mat_size + 8;
+    const size_t encoded_len =
+    VarintLength(internal_key_size) + internal_key_size +
+    VarintLength(val_size) + val_size;
+    char* buf = arena_.Allocate(encoded_len);
+    char* p = EncodeVarint32(buf, internal_key_size);
+    memcpy(p, (key.data()+mat_size), (key_size-mat_size));
+    p += (key_size - mat_size); 
+    EncodeFixed64(p, (s << 8) | type);
+    p += 8;
+    //encode value
+    p = EncodeVarint32(p, val_size);
+    EncodeFixed8(p , val_type);
+    p += 1;
+    EncodeFixed64(p, nextversion);
+    p += 8;
+    memcpy(p, value.data(), value.size());
+    assert((p + value.size()) - buf == encoded_len);
+    if(met_ !=NULL){
+      Slice mat_key(key.data()+mat_size, key.size()-mat_size);
+      uint32_t crc32value = crc32c::Value(mat_key.data(), mat_key.size());
+      //printf("crc32value=%u, type=%d\n", crc32value, type);
+      mutexs_[crc32value%kNumKeyMutexs]->Lock();
+      if(type == kTypeValue){
+        if(met_->Insert(crc32value, mat_key, nextversion) && !(versioncare & 0x00000004)){
           table_.Insert(buf);
+        }
+      }else if(type == kTypeDeletion ){
+        if(met_->Remove(crc32value, mat_key, nextversion) && !(versioncare & 0x00000004)){ 
+          table_.Insert(buf);
+        }
       }
+      mutexs_[crc32value%kNumKeyMutexs]->Unlock();
+    }else {
+      if( !(versioncare & 0x00000004)){
+        table_.Insert(buf);
+      }
+    }
   }
 }
 

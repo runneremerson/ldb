@@ -9,7 +9,7 @@
 #include <stdint.h>
 
 
-void encode_hsize_key(const char* name, size_t namelen, const ldb_meta_t* meta, ldb_slice_t** pslice);
+void encode_hsize_key(const char* name, size_t namelen, ldb_slice_t** pslice);
 int decode_hsize_key(const char* ldbkey, size_t ldbkeylen, ldb_slice_t** pslice);
 
 

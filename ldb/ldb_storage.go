@@ -58,7 +58,7 @@ type StorageMetaData struct {
 }
 
 var STORAGE_VERSION_CARE_EQUAL = 0x00000001
-var STORAGE_VERSION_CARE_CLEAR = 0x00000002
+var STORAGE_VERSION_CARE_DIRCT = 0x00000002
 
 func DefaultMetaData() StorageMetaData {
 	return StorageMetaData{
