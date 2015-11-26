@@ -9,9 +9,6 @@ all:
 	cd ldb/; ${MAKE}
 	cd test/; ${MAKE}
 
-test_c:
-	cd test/; ${MAKE} test_all
-
 clean:
 	rm -f *.a  ldb_bench org_bench
 	cd ldb/; ${MAKE} clean
