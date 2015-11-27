@@ -1,8 +1,8 @@
 package ldb
 
 /*
-#cgo  linux CFLAGS: -std=gnu99 -W -I../ -I../deps/leveldb-1.18/include -I../deps/jemalloc/include/ -DUSE_JEMALLOC=1 -DUSE_INT=1
-#cgo  LDFLAGS:	 -L/usr/local/lib  -L../deps/leveldb-1.18 -lleveldb -ljemalloc
+#cgo  linux CFLAGS: -std=gnu99 -W -I../ -I../deps/leveldb-1.18/include -I../deps/jemalloc-3.3.1/include/ -DUSE_JEMALLOC=1 -DUSE_INT=1
+#cgo  LDFLAGS:	 -L/usr/local/lib  -L../deps/leveldb-1.18 -L../deps/jemalloc-3.3.1/lib -lleveldb -ljemalloc
 #include "ldb_session.h"
 #include "ldb_context.h"
 #include "ldb_expiration.h"
@@ -184,8 +184,8 @@ func (manager *LdbManager) InitDB(file_path string, cache_size int, write_buffer
 
 	manager.context = (*C.ldb_context_t)(C.ldb_context_create(C.CString(file_path),
 		C.size_t(cache_size),
-		C.size_t(write_buffer_size)),
-		C.int(1))
+		C.size_t(write_buffer_size),
+		C.int(1)))
 	if unsafe.Pointer(manager.context) == CNULL {
 		log.Errorf("leveldb_context_create error")
 		return -1
@@ -194,6 +194,7 @@ func (manager *LdbManager) InitDB(file_path string, cache_size int, write_buffer
 	manager.ldbKeyLock = make([]sync.RWMutex, KEY_LOCK_NUM)
 	manager.inited = true
 
+	//go manager.RecoverMetaData()
 	//go manager.CleanExpiredData()
 
 	return 0
@@ -239,6 +240,17 @@ func (manager *LdbManager) CleanExpiredData() {
 
 			time.Sleep(time.Duration(500) * time.Millisecond)
 		}
+	}
+}
+
+func (manager *LdbManager) RecoverMetaData() {
+	recovery := (*C.ldb_recovery_t)(CNULL)
+	for {
+		ret := C.ldb_recover_meta(manager.context, &recovery)
+		if int(ret) < 0 {
+			break
+		}
+		time.Sleep(time.Duration(500) * time.Millisecond)
 	}
 }
 

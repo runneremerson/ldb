@@ -117,7 +117,7 @@ int ldb_expiration_exp_batch(ldb_expiration_t* expiration, ldb_list_t** plist, s
             --limit;
         }
         if(ldb_expiration_next(expiration)<0){
-            printf("iterator come to the end\n");
+            fprintf(stderr, "%s iterator came to the end.\n", __func__);
             //log iterator
             retval = -1;
             goto end;

@@ -5,6 +5,7 @@
 #include "ldb_define.h"
 #include "ldb_list.h"
 #include "ldb_expiration.h"
+#include "ldb_recovery.h"
 
 #include "trace.h"
 #include "config.h"
@@ -133,6 +134,22 @@ end:
         *expiration = NULL;
     }
     return retval;
+}
+
+int ldb_recover_meta(ldb_context_t* context, ldb_recovery_t** recovery){
+    int retval = 0;
+
+    if(*recovery == NULL){
+        *recovery = ldb_recovery_create(context);
+    }
+    size_t limit = 50000;
+    retval = ldb_recovery_rec_batch(context, *recovery, limit);
+    if(retval < 0){
+        ldb_recovery_destroy(*recovery);
+        ldb_context_release_recovering_snapshot(context);
+        *recovery = NULL;
+    }
+    return retval; 
 }
 
 

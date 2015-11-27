@@ -72,7 +72,7 @@ int string_set(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t
   leveldb_writeoptions_destroy(writeoptions);
   ldb_slice_destroy(slice_key);
   if(errptr != NULL){
-    fprintf(stderr, "leveldb_put fail %s.\n", errptr);
+    fprintf(stderr, "%s leveldb_put failed %s.\n", __func__, errptr);
     leveldb_free(errptr);
     retval = LDB_ERR;
     goto end;
@@ -113,7 +113,7 @@ int string_setnx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
   leveldb_writeoptions_destroy(writeoptions);
   ldb_slice_destroy(slice_key);
   if(errptr != NULL){
-    fprintf(stderr, "leveldb_put fail %s.\n", errptr);
+    fprintf(stderr, "%s leveldb_put failed %s.\n", __func__, errptr);
     leveldb_free(errptr);
     retval = LDB_ERR;
     goto end;
@@ -156,7 +156,7 @@ int string_setxx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice
   leveldb_writeoptions_destroy(writeoptions);
   ldb_slice_destroy(slice_key);
   if(errptr != NULL){
-    fprintf(stderr, "leveldb_put fail %s.\n", errptr);
+    fprintf(stderr, "%s leveldb_put failed %s.\n", __func__, errptr);
     leveldb_free(errptr);
     retval = LDB_ERR;
     goto end;
@@ -457,7 +457,7 @@ int string_incr(ldb_context_t* context, const ldb_slice_t* key, const ldb_meta_t
   leveldb_writeoptions_destroy(writeoptions);
   ldb_slice_destroy(slice_key);
   if(errptr != NULL){
-    fprintf(stderr, "leveldb_put fail %s.\n", errptr);
+    fprintf(stderr, "%s leveldb_put failed %s.\n", __func__, errptr);
     leveldb_free(errptr);
     retval = LDB_ERR;
     goto end;

@@ -3,6 +3,7 @@
 
 #include "ldb_context.h"
 #include "ldb_expiration.h"
+#include "ldb_recovery.h"
 
 #include "util/cgo_util_base.h"
 
@@ -30,6 +31,8 @@ int set_ldb_signal_handler(const char* name);
 
 //expire
 int ldb_fetch_expire(ldb_context_t* context, ldb_expiration_t** expiration, value_item_t** items, size_t* itemnum);
+//recover
+int ldb_recover_meta(ldb_context_t* context, ldb_recovery_t** recovery);
 
 //string
 int ldb_set(ldb_context_t* context,
