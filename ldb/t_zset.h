@@ -42,7 +42,7 @@ int zset_get(ldb_context_t* context, const ldb_slice_t* name,
         const ldb_slice_t* key, int64_t* score);
 
 int zset_rank(ldb_context_t* context, const ldb_slice_t* name, 
-        const ldb_slice_t* key, int reverse, int64_t* rank);
+        const ldb_slice_t* key, int reverse, uint64_t* rank);
 
 int zset_count(ldb_context_t* context, const ldb_slice_t* name,
         int64_t score_start, int64_t score_end, uint64_t *count);

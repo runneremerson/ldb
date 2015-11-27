@@ -47,7 +47,7 @@ static void test_zset(ldb_context_t* context){
     size = 0;
     assert(zset_size(context, slice_name1, &size) == LDB_OK);
 
-    int64_t rank = 0;
+    uint64_t rank = 0;
     assert(zset_rank(context, slice_name1, slice_key2, 0 , &rank) == LDB_OK);
     printf("zset_rank result=%ld\n", rank);
 
@@ -139,7 +139,7 @@ static void test_zset(ldb_context_t* context){
 
     uint64_t nextver10 = nextver9 + 100000;
     uint32_t vercare10 = 0;
-    ldb_meta_t *meta10 = ldb_meta_create(vercare10, 0, nextver9);
+    ldb_meta_t *meta10 = ldb_meta_create(vercare10, 0, nextver10);
     deleted = 0;
     int64_t score_start = -170, score_end = -69;
     assert(zset_del_range_by_score(context, slice_name1, meta10, score_start, score_end, &deleted)== LDB_OK); 
@@ -185,7 +185,7 @@ static void test_zset(ldb_context_t* context){
 
 
 int main(int argc, char* argv[]){
-    ldb_context_t *context = ldb_context_create("/tmp/testzset", 128, 64);
+    ldb_context_t *context = ldb_context_create("/tmp/testzset", 128, 64, 1);
     assert(context != NULL);
     ldb_context_release_recovering_snapshot(context);
     

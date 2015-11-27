@@ -101,6 +101,11 @@ extern void leveldb_put(
     const char* val, size_t vallen,
     char** errptr);
 
+extern void leveldb_put_meta(
+    leveldb_t* db,
+    const char* key, size_t keylen,
+    char** errptr);
+
 extern void leveldb_delete(
     leveldb_t* db,
     const leveldb_writeoptions_t* options,

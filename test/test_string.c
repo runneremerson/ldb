@@ -241,7 +241,8 @@ static void test_expire(ldb_context_t* context){
 
 
 int main(int argc, char* argv[]){
-    ldb_context_t *context = ldb_context_create("/tmp/teststring", 128, 64);
+    ldb_context_t *context = ldb_context_create("/tmp/teststring", 128, 64, 1);
+    ldb_context_release_recovering_snapshot(context);
     assert(context != NULL);
 
     test_string(context);

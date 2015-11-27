@@ -232,6 +232,14 @@ void leveldb_put(
             db->rep->Put(options->rep, Slice(key, keylen), Slice(val, vallen)));
 }
 
+void leveldb_put_meta(
+    leveldb_t* db,
+    const char* key, size_t keylen,
+    char** errptr) {
+  SaveError(errptr,
+            db->rep->PutMeta(Slice(key, keylen)));  
+}
+
 void leveldb_delete(
     leveldb_t* db,
     const leveldb_writeoptions_t* options,

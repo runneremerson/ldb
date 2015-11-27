@@ -52,6 +52,8 @@ class MemTable {
   // db/format.{h,cc} module.
   Iterator* NewIterator();
 
+  void AddMeta(const Slice& key);
+
   // Add an entry into memtable that maps key to value at the
   // specified sequence number and with the specified type.
   // Typically value will be empty if type==kTypeDeletion.

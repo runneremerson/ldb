@@ -1,9 +1,6 @@
 #ifndef LDB_CONFIG_H
 #define LDB_CONFIG_H
 
-#ifdef __APPLE__
-#include <AvailabilityMacros.h>
-#endif
 
 /* Use tcmalloc's malloc_size() when available.
  * When tcmalloc is used, native OSX malloc_size() may never be used because
@@ -16,7 +13,11 @@
 #define ldb_malloc_size(p) tc_malloc_size(p)
 #endif
 
-
+#if defined(USE_JEMALLOC)
+#include <jemalloc/jemalloc.h>
+#define USE_JEMALLOC 1
+#define ldb_malloc_size(p) je_malloc_size(p)
+#endif
 
 
 /* test for backtrace() */

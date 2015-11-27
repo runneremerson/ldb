@@ -37,7 +37,6 @@ void encode_hsize_key(const char* name, size_t namelen, ldb_slice_t** pslice){
   ldb_slice_push_back(slice, name, namelen);
   *pslice = slice;
 
-end:
   ldb_meta_destroy(meta);
 }
 
@@ -199,7 +198,6 @@ int hash_mget(ldb_context_t* context, const ldb_slice_t* name, const ldb_list_t*
     rpush_ldb_list_node(*pmetalist, node_meta);
   }
 
-end:
   ldb_list_iterator_destroy(keyiterator);
   return retval;
 }
@@ -358,7 +356,6 @@ int hash_setnx(ldb_context_t* context, const ldb_slice_t* name, const ldb_slice_
         retval = LDB_ERR;
     }
 
-end:
     return retval;
 }
 
@@ -391,7 +388,6 @@ int hash_mset(ldb_context_t* context, const ldb_slice_t* name, const ldb_list_t*
         rpush_ldb_list_node(retlist, node_ret); 
     }
 
-end:
     if(retlist != NULL){
         (*plist) = retlist;
     }
@@ -582,7 +578,7 @@ static int hset_one(ldb_context_t* context, const ldb_slice_t* name,
 
     retval = 0;
   }
-end:
+
   ldb_slice_destroy(slice_key);
   ldb_slice_destroy(slice_val);
   ldb_meta_destroy(old_meta);
@@ -696,7 +692,6 @@ static int hscan(ldb_context_t* context, const ldb_slice_t* name,
     *piterator = ldb_hash_iterator_create(context, name, slice_start, slice_end, limit, BACKWARD);
   }
 
-end:
   ldb_slice_destroy(slice_start);
   ldb_slice_destroy(slice_end);
   return 0;

@@ -13,6 +13,10 @@
 #define free(ptr) tc_free(ptr)
 #endif
 
+#if defined(USE_JEMALLOC)
+
+#endif
+
 
 
 static void lmalloc_oom(size_t size) {

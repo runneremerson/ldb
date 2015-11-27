@@ -1200,8 +1200,21 @@ Status DBImpl::Put(const WriteOptions& o, const Slice& key, const Slice& val) {
   return DB::Put(o, key, val);
 }
 
+Status DBImpl::PutMeta(const Slice& key){
+  return DB::PutMeta(key);
+}
+
+
+
 Status DBImpl::Delete(const WriteOptions& options, const Slice& key) {
   return DB::Delete(options, key);
+}
+
+
+Status DBImpl::WriteMeta(const Slice& key){
+  MutexLock l(&mutex_);
+  mem_->AddMeta(key);
+  return Status();
 }
 
 Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
@@ -1479,11 +1492,16 @@ Status DB::Put(const WriteOptions& opt, const Slice& key, const Slice& value) {
   return Write(opt, &batch);
 }
 
+Status DB::PutMeta(const Slice& key){
+  return WriteMeta(key);
+}
+
 Status DB::Delete(const WriteOptions& opt, const Slice& key) {
   WriteBatch batch;
   batch.Delete(key);
   return Write(opt, &batch);
 }
+
 
 DB::~DB() { }
 

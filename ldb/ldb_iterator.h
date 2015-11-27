@@ -12,13 +12,15 @@ enum {
     BACKWARD = 1
 };
 
-typedef struct ldb_data_iterator_t ldb_zset_iterator_t;
+typedef struct ldb_data_iterator_t      ldb_zset_iterator_t;
 
-typedef struct ldb_data_iterator_t ldb_hash_iterator_t;
+typedef struct ldb_data_iterator_t      ldb_hash_iterator_t;
 
-typedef struct ldb_data_iterator_t ldb_string_iterator_t;
+typedef struct ldb_data_iterator_t      ldb_string_iterator_t;
 
-typedef struct ldb_data_iterator_t ldb_set_iterator_t;
+typedef struct ldb_data_iterator_t      ldb_set_iterator_t;
+
+typedef struct ldb_recov_iterator_t     ldb_recov_iterator_t;
 
 
 ldb_zset_iterator_t* ldb_zset_iterator_create(ldb_context_t *context, const ldb_slice_t *name,
@@ -91,6 +93,23 @@ const char* ldb_string_iterator_val_raw(const ldb_string_iterator_t *iterator, s
 const char* ldb_string_iterator_key_raw(const ldb_string_iterator_t *iterator, size_t* klen);
 
 int ldb_string_iterator_valid(const ldb_string_iterator_t *iterator);
+
+
+ldb_recov_iterator_t* ldb_recov_iterator_create(ldb_context_t *context);
+
+void ldb_recov_iterator_destroy(ldb_recov_iterator_t* iterator);
+
+int ldb_recov_iterator_next(ldb_recov_iterator_t *iterator);
+
+void ldb_recov_iterator_val(const ldb_recov_iterator_t *iterator, ldb_slice_t **pslice);
+
+const char* ldb_recov_iterator_val_raw(const ldb_recov_iterator_t *iterator, size_t* vlen);
+
+void ldb_recov_iterator_key(const ldb_recov_iterator_t *iterator, ldb_slice_t **pslice);
+
+const char* ldb_recov_iterator_key_raw(const ldb_recov_iterator_t *iterator, size_t* klen);
+
+int ldb_recov_iterator_valid(const ldb_recov_iterator_t *iterator);
 
 #endif //LDB_ITERATOR_H
 

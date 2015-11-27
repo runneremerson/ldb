@@ -1,5 +1,4 @@
-CC=gcc
-MAKE=make
+include ../build_config.mk
 
 LDB_OBJS = ldb_session.o ldb_bytes.o ldb_context.o ldb_list.o ldb_meta.o ldb_slice.o \
 	   ldb_iterator.o lmalloc.o util.o t_string.o t_zset.o t_hash.o t_set.o ldb_expiration.o \
@@ -7,7 +6,7 @@ LDB_OBJS = ldb_session.o ldb_bytes.o ldb_context.o ldb_list.o ldb_meta.o ldb_sli
 
 
 
-CFLAGS= -std=gnu99 -O0 -g -I../deps/leveldb-1.18/include -I../  -I../../ -DUSE_TCMALLOC=1 -DUSE_INT=1 
+CFLAGS+= -std=gnu99 -DUSE_JEMALLOC=1 -DUSE_INT=1 -I../ 
 
 all: ${LDB_OBJS}
 	ar -cru ../libldb.a ${LDB_OBJS}

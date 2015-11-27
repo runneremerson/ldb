@@ -44,7 +44,6 @@ void encode_zsize_key(const char* name, size_t namelen, ldb_slice_t** pslice){
   ldb_slice_push_back(slice, name, namelen);
   *pslice = slice;
 
-end:
   ldb_meta_destroy(meta);
 }
 
@@ -421,7 +420,7 @@ end:
 
 
 int zset_rank(ldb_context_t* context, const ldb_slice_t* name, 
-              const ldb_slice_t* key, int reverse, int64_t* rank){
+              const ldb_slice_t* key, int reverse, uint64_t* rank){
   int retval = 0;
   ldb_zset_iterator_t *iterator = NULL; 
   if(reverse == 0){
@@ -945,7 +944,6 @@ static ldb_zset_iterator_t* ziterator(ldb_context_t *context, const ldb_slice_t 
     }
     ldb_zset_iterator_t* iterator = ldb_zset_iterator_create(context, name,  key_start, key_end, limit, direction);
 
-end:
     ldb_slice_destroy(key_start);
     ldb_slice_destroy(key_end);
     return iterator;

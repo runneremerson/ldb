@@ -20,6 +20,10 @@ struct ldb_data_iterator_t {
     leveldb_iterator_t *iterator_;
 };
 
+struct ldb_recov_iterator_t {
+    leveldb_iterator_t *iterator_;
+};
+
 ldb_zset_iterator_t* ldb_zset_iterator_create(ldb_context_t *context, const ldb_slice_t *name, 
                                               ldb_slice_t *start, ldb_slice_t *end, uint64_t limit, int direction){
     ldb_zset_iterator_t *iterator = (ldb_zset_iterator_t*)lmalloc(sizeof(ldb_zset_iterator_t));
@@ -575,5 +579,74 @@ const char* ldb_string_iterator_key_raw(const ldb_string_iterator_t *iterator, s
 }
 
 int ldb_string_iterator_valid(const ldb_string_iterator_t *iterator){
+    return leveldb_iter_valid(iterator->iterator_); 
+}
+
+
+ldb_recov_iterator_t* ldb_recov_iterator_create(ldb_context_t *context){
+    ldb_recov_iterator_t *iterator = (ldb_recov_iterator_t*)lmalloc(sizeof(ldb_recov_iterator_t));
+    leveldb_readoptions_t *readoptions = leveldb_readoptions_create();
+    leveldb_readoptions_set_fill_cache(readoptions, 0);
+    assert(context->for_recovering_ != NULL);
+    leveldb_readoptions_set_snapshot(readoptions, context->for_recovering_);
+    iterator->iterator_ = leveldb_create_iterator(context->database_, readoptions);
+    leveldb_readoptions_destroy(readoptions);
+    return iterator;
+}
+
+
+void ldb_recov_iterator_destroy(ldb_recov_iterator_t* iterator){
+    if(iterator!=NULL){
+        leveldb_iter_destroy(iterator->iterator_);
+    }
+    lfree(iterator); 
+}
+
+int ldb_recov_iterator_next(ldb_recov_iterator_t *iterator){
+    int retval = 0;
+
+    while(1){
+        leveldb_iter_next(iterator->iterator_);
+
+        if(!leveldb_iter_valid(iterator->iterator_)){
+            retval = -1;
+            goto end;
+        }
+
+        size_t vlen = 0;
+        const char *val = leveldb_iter_value(iterator->iterator_, &vlen);
+        assert(vlen >= LDB_VAL_META_SIZE);
+        uint64_t version = leveldb_decode_fixed64(val + LDB_VAL_META_SIZE);
+        if(version > 0){
+            retval = 0;
+            goto end;
+        }
+    }
+
+end:
+    return retval; 
+}
+
+void ldb_recov_iterator_val(const ldb_recov_iterator_t *iterator, ldb_slice_t **pslice){
+    size_t vlen = 0;
+    const char *val = leveldb_iter_value(iterator->iterator_, &vlen);
+    *pslice = ldb_slice_create(val, vlen); 
+}
+
+const char* ldb_recov_iterator_val_raw(const ldb_recov_iterator_t *iterator, size_t* vlen){
+   return leveldb_iter_value(iterator->iterator_, vlen); 
+}
+
+void ldb_recov_iterator_key(const ldb_recov_iterator_t *iterator, ldb_slice_t **pslice){
+    size_t klen = 0;
+    const char *key = leveldb_iter_key(iterator->iterator_, &klen);
+    *pslice = ldb_slice_create(key, klen); 
+}
+
+const char* ldb_recov_iterator_key_raw(const ldb_recov_iterator_t *iterator, size_t* klen){
+    return leveldb_iter_key(iterator->iterator_, klen);
+}
+
+int ldb_recov_iterator_valid(const ldb_recov_iterator_t *iterator){
     return leveldb_iter_valid(iterator->iterator_); 
 }

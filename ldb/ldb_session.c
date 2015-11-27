@@ -163,7 +163,6 @@ int ldb_set(ldb_context_t* context,
     retval = string_setnx(context, slice_key, slice_val, meta);
   }
 
-end:
   ldb_slice_destroy(slice_key);
   ldb_slice_destroy(slice_val);
   ldb_slice_destroy(slice_value);
@@ -382,7 +381,6 @@ int ldb_exists(ldb_context_t* context,
     ldb_slice_t *slice_val = NULL;
     retval = string_get(context, slice_key, &slice_val, &meta);
                    
-end:
     ldb_slice_destroy(slice_key);
     ldb_slice_destroy(slice_val);
     ldb_meta_destroy(meta);
@@ -491,7 +489,6 @@ int ldb_del(ldb_context_t* context,
   ldb_meta_t *meta = ldb_meta_create(vercare, 0, version);
   retval = string_del(context, slice_key, meta);
 
-end:
   ldb_slice_destroy(slice_key);
   ldb_meta_destroy(meta);
   return retval;
@@ -512,7 +509,6 @@ int ldb_incrby(ldb_context_t* context,
   ldb_meta_t *meta = ldb_meta_create_with_exp(vercare, lastver, version, exptime);
   retval = string_incr(context, slice_key, meta, initval, by, result);
 
-end:
   ldb_slice_destroy(slice_key);
   ldb_meta_destroy(meta);
   return retval;
@@ -664,7 +660,6 @@ int ldb_hget(ldb_context_t* context,
         (*items)[0].version_ = ldb_meta_nextver(meta);
     }
 
-end:
     ldb_slice_destroy(slice_name);
     ldb_slice_destroy(slice_key);
     ldb_slice_destroy(slice_val);
@@ -752,7 +747,6 @@ int ldb_hincrby(ldb_context_t* context,
     ldb_meta_t *meta = ldb_meta_create(vercare, lastver, item->version_);
     retval = hash_incr(context, slice_name, slice_key, meta, by, result);
 
-end:
     ldb_slice_destroy(slice_name);
     ldb_slice_destroy(slice_key);
     ldb_meta_destroy(meta);
@@ -874,7 +868,6 @@ int ldb_hdel(ldb_context_t* context,
     }
     retval = LDB_OK;
 
-end:
   ldb_slice_destroy(slice_name);
   return retval;
 }
@@ -888,7 +881,6 @@ int ldb_hlen(ldb_context_t* context,
     ldb_slice_t* slice_name = ldb_slice_create(name, namelen);
     retval = hash_length(context, slice_name, length);
 
-end:
     ldb_slice_destroy(slice_name);
     return retval;
 }
@@ -904,9 +896,9 @@ int ldb_hexists(ldb_context_t* context,
     ldb_slice_t* slice_key = ldb_slice_create(key, keylen);
     retval = hash_exists(context, slice_name, slice_key);
 
-end:
     ldb_slice_destroy(slice_name);
     ldb_slice_destroy(slice_key);
+    return retval;
 }
 
 int ldb_sadd(ldb_context_t* context,
@@ -931,7 +923,6 @@ int ldb_sadd(ldb_context_t* context,
   }
   retval = LDB_OK;
 
-end:
   ldb_slice_destroy(slice_name);
   return retval;
 }
@@ -1029,7 +1020,6 @@ int ldb_srem(ldb_context_t* context,
   }
   retval = LDB_OK;
 
-end:
   ldb_slice_destroy(slice_name);
   return retval;
 }
@@ -1042,7 +1032,6 @@ int ldb_scard(ldb_context_t* context,
     ldb_slice_t *slice_name = ldb_slice_create(name, namelen);
     retval = set_card(context, slice_name, count);
 
-end:
     ldb_slice_destroy(slice_name);
     return retval;
 }
@@ -1057,7 +1046,6 @@ int ldb_sismember(ldb_context_t* context,
     ldb_slice_t *slice_key = ldb_slice_create(key, keylen);
     retval = set_ismember(context, slice_name, slice_key);
 
-end:
     ldb_slice_destroy(slice_name);
     ldb_slice_destroy(slice_key);
     return retval;
@@ -1240,7 +1228,6 @@ int ldb_zadd(ldb_context_t* context,
   }
   retval = LDB_OK;
 
-end:
   ldb_slice_destroy(slice_name);
   return retval;
 }
@@ -1298,7 +1285,6 @@ int ldb_zincrby(ldb_context_t* context,
   ldb_meta_t* meta = ldb_meta_create(vercare, lastver, item->version_);
   retval = zset_incr(context, slice_name, slice_key, meta, by, score);  
 
-end:
   ldb_slice_destroy(slice_name);
   ldb_slice_destroy(slice_key);
   ldb_meta_destroy(meta);
@@ -1325,7 +1311,6 @@ int ldb_zrem(ldb_context_t* context,
     ldb_meta_destroy(meta);
   }
 
-end:
   ldb_slice_destroy(slice_name);
   return retval;
 }
@@ -1343,7 +1328,6 @@ int ldb_zrem_by_rank(ldb_context_t* context,
   ldb_meta_t* meta = ldb_meta_create(vercare, 0, nextver);
   retval = zset_del_range_by_rank(context, slice_name, meta, rank_start, rank_end, deleted);
 
-end:
   ldb_slice_destroy(slice_name);
   ldb_meta_destroy(meta);
   return retval;
@@ -1362,7 +1346,6 @@ int ldb_zrem_by_score(ldb_context_t* context,
   ldb_meta_t* meta = ldb_meta_create(vercare, 0, nextver);
   retval = zset_del_range_by_score(context, slice_name, meta, score_start, score_end, deleted);
 
-end:
   ldb_slice_destroy(slice_name);
   ldb_meta_destroy(meta);
   return retval;
@@ -1380,7 +1363,6 @@ int ldb_zcard(ldb_context_t* context,
     retval = LDB_OK;
   }
   
-end:
   ldb_slice_destroy(slice_name);
   return retval;
 }

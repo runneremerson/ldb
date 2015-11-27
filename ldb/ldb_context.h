@@ -20,7 +20,7 @@ struct ldb_context_t{
 typedef struct ldb_context_t    ldb_context_t;
 
 
-ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t write_buffer_size);
+ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t write_buffer_size, int compression);
 
 void ldb_context_destroy( ldb_context_t* context);
 

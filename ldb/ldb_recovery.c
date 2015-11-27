@@ -16,6 +16,9 @@
 #include <stdio.h>
 
 struct ldb_recovery_t {
+    ldb_recov_iterator_t* iter_;
 };
+
+
 
 

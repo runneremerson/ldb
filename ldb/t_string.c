@@ -391,7 +391,6 @@ int string_mget(ldb_context_t* context, const ldb_list_t* keylist, ldb_list_t** 
     rpush_ldb_list_node(*pmetalist, node_meta);
   }
 
-end:
   ldb_list_iterator_destroy(keyiterator);
   return retval;
 }

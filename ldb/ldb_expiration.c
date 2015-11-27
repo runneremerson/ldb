@@ -30,7 +30,6 @@ ldb_expiration_t* ldb_expiration_create( ldb_context_t* context ){
     uint64_t limit = 1000*1000*1000;
     expiration->iter_ = ldb_string_iterator_create(context, start, end, limit, FORWARD);
 
-end:
     ldb_slice_destroy(start);
     ldb_slice_destroy(end);
     ldb_meta_destroy(meta);
@@ -56,7 +55,7 @@ static int check_expiration_valid( ldb_expiration_t* expiration){
     return 0;
 }
 
-int ldb_expiration_next( ldb_expiration_t* expiration ){
+static int ldb_expiration_next( ldb_expiration_t* expiration ){
     int retval = ldb_string_iterator_next(expiration->iter_);
     if(retval<0){
         return -1;
@@ -100,7 +99,6 @@ int ldb_expiration_exp_batch(ldb_expiration_t* expiration, ldb_list_t** plist, s
 
 
     if(!check_expiration_valid(expiration)){
-        printf("expiration is not valid because it is not starting from TYPE_STRING\n");
         //log expiration
         retval = -1; 
         goto end;

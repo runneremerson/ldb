@@ -14,6 +14,7 @@ ldb_bytes_t* ldb_bytes_create(const char* data, size_t size){
   ldb_bytes_t *bytes = (ldb_bytes_t*)lmalloc(sizeof(ldb_bytes_t));
   bytes->data_ = data;
   bytes->size_ = size;
+  return bytes;
 }
 
 void ldb_bytes_destroy(ldb_bytes_t* bytes){

@@ -9,7 +9,7 @@
 
 
 
-ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t write_buffer_size){
+ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t write_buffer_size, int compression){
     ldb_context_t* context = (ldb_context_t*)(lmalloc(sizeof(ldb_context_t)));
     memset(context, 0, sizeof(ldb_context_t));
     context->options_ = leveldb_options_create();
@@ -23,7 +23,9 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
     context->mutex_ = leveldb_mutex_create();
     leveldb_options_set_block_size(context->options_, 32*1024);
     leveldb_options_set_write_buffer_size(context->options_, write_buffer_size*1024*1024);
-    leveldb_options_set_compression(context->options_, leveldb_snappy_compression);
+    if(compression){
+        leveldb_options_set_compression(context->options_, leveldb_snappy_compression); 
+    }
     leveldb_options_set_compaction_speed(context->options_, 1000);
     char* leveldb_error = NULL;
     context->database_ = leveldb_open(context->options_, name, &leveldb_error); 
@@ -72,9 +74,6 @@ void ldb_context_destroy( ldb_context_t* context){
         leveldb_mutex_destroy(context->mutex_);
     }
     lfree(context);
-}
-
-void ldb_context_create_recovering_snapshot(ldb_context_t* context){
 }
 
 void ldb_context_release_recovering_snapshot(ldb_context_t* context){

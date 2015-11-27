@@ -99,9 +99,6 @@ echo "#ifndef LDB_VERSION" >> ldb/version.h
 echo "#define LDB_VERSION \"`cat version`\"" >> ldb/version.h
 echo "#endif" >> ldb/version.h
 echo "#endif" >> ldb/version.h
-echo "#include <stdlib.h>" >> ldb/version.h
-echo "#include <jemalloc/jemalloc.h>" >> ldb/version.h
-echo "#endif" >> ldb/version.h
 
 rm -f build_config.mk
 echo CC=$CC >> build_config.mk
@@ -112,7 +109,8 @@ echo "JEMALLOC_PATH=$JEMALLOC_PATH" >> build_config.mk
 echo "SNAPPY_PATH=$SNAPPY_PATH" >> build_config.mk
 
 echo "CFLAGS=" >> build_config.mk
-echo "CFLAGS = -DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare" >> build_config.mk
+#echo "CFLAGS = -DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare" >> build_config.mk
+echo "CFLAGS = -Wall -O0 -g -Wno-sign-compare" >> build_config.mk
 echo "CFLAGS += ${PLATFORM_CFLAGS}" >> build_config.mk
 echo "CFLAGS += -I \"$LEVELDB_PATH/include\"" >> build_config.mk
 

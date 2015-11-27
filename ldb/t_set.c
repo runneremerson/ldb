@@ -42,7 +42,6 @@ void encode_ssize_key(const char* name, size_t namelen, ldb_slice_t** pslice){
   ldb_slice_push_back(slice, name, namelen);
   *pslice = slice;
 
-end:
   ldb_meta_destroy(meta);
 }
 
@@ -467,7 +466,7 @@ static int sset_one(ldb_context_t* context, const ldb_slice_t* name,
     ldb_meta_destroy(old_meta);
     retval = 0;
   }
-end:
+
   ldb_slice_destroy(slice_key);
   return retval;
 }
@@ -515,7 +514,6 @@ static int sscan(ldb_context_t* context, const ldb_slice_t* name,
     *piterator = ldb_hash_iterator_create(context, name, slice_start, slice_end, limit, BACKWARD);
   }
 
-end:
   ldb_slice_destroy(slice_start);
   ldb_slice_destroy(slice_end);
   return 0;

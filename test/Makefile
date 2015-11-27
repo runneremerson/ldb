@@ -1,10 +1,8 @@
-CC=gcc
-CXX=g++
+include ../build_config.mk
 
-LIBS = ../libldb.a ../deps/leveldb-1.18/libleveldb.a /usr/local/lib/libtcmalloc_minimal.a 
+LIBS = ../libldb.a 
 
-CFLAGS= -std=gnu99 -O0 -g  -I../ -I../deps/leveldb-1.18/include -DUSE_TCMALLOC=1  -DUSE_INT=1 
-CLIBS=  -lpthread 
+CFLAGS+= -std=gnu99 -I../  -DUSE_JEMALLOC=1  -DUSE_INT=1 
 
 all: test_string.o test_hash.o test_zset.o test_set.o
 	${CXX}  -o test_string test_string.o  ${LIBS} ${CLIBS}
