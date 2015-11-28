@@ -1,8 +1,7 @@
 include ../build_config.mk
 
 LDB_OBJS = ldb_session.o ldb_bytes.o ldb_context.o ldb_list.o ldb_meta.o ldb_slice.o \
-	   ldb_iterator.o lmalloc.o util.o t_string.o t_zset.o t_hash.o t_set.o ldb_expiration.o \
-	   ldb_recovery.o
+	   ldb_iterator.o lmalloc.o util.o t_string.o t_zset.o t_hash.o t_set.o ldb_recovery.o
 
 
 
@@ -26,8 +25,6 @@ ldb_slice.o: ldb_slice.h ldb_slice.c
 	${CC} ${CFLAGS} -c ldb_slice.c
 ldb_iterator.o: ldb_iterator.h ldb_iterator.c
 	${CC} ${CFLAGS} -c ldb_iterator.c
-ldb_expiration.o: ldb_expiration.h ldb_expiration.c
-	${CC} ${CFLAGS} -c ldb_expiration.c
 ldb_recovery.o: ldb_recovery.h ldb_recovery.c
 	${CC} ${CFLAGS} -c ldb_recovery.c
 lmalloc.o: lmalloc.h lmalloc.c

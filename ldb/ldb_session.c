@@ -4,7 +4,6 @@
 #include "ldb_meta.h"
 #include "ldb_define.h"
 #include "ldb_list.h"
-#include "ldb_expiration.h"
 #include "ldb_recovery.h"
 
 #include "trace.h"
@@ -81,59 +80,11 @@ static int decode_slice_value(const ldb_slice_t* slice_val, const ldb_meta_t* me
   return 0;
 }
 
-static int decode_slice_expire(const ldb_slice_t* slice_expire, uint64_t expire, value_item_t* item){
-  fill_value_item(item, expire, ldb_slice_data(slice_expire), ldb_slice_size(slice_expire));
-  return 0;
-}
-
 static char* malloc_and_copy(const char* data, size_t size){
   char* result = lmalloc(size + 1);
   memcpy(result, data, size); 
   result[size] = '\0';
   return result;
-}
-
-
-int ldb_fetch_expire(ldb_context_t* context, ldb_expiration_t** expiration, value_item_t** items, size_t* itemnum){
-    int retval = 0;
-
-    if(*expiration == NULL){
-        *expiration = ldb_expiration_create( context );
-    }
-    ldb_list_t *expire_list = NULL;
-    size_t limit = 1000;
-    retval = ldb_expiration_exp_batch(*expiration, &expire_list, limit);
-    if(retval <0){
-        retval = -1;
-        goto end;
-    }
-    *itemnum = expire_list->length_;
-    if(*itemnum == 0){
-        goto end;
-    }
-    *items = create_value_item_array(*itemnum);
-    ldb_list_iterator_t *iterator = ldb_list_iterator_create(expire_list);
-    size_t now = 0;
-    while(1){
-        ldb_list_node_t *node = ldb_list_next( &iterator );
-        if(node == NULL){
-            retval = 0;
-            goto end;
-        }
-        ldb_slice_t *key = (ldb_slice_t*)node->data_;
-        uint64_t expire = node->value_;
-        decode_slice_expire(key, expire, &((*items)[now]));
-        ++now;
-    }
-
-end:
-    ldb_list_destroy(expire_list);
-    ldb_list_iterator_destroy(iterator);
-    if(retval < 0){
-        ldb_expiration_destroy(*expiration);
-        *expiration = NULL;
-    }
-    return retval;
 }
 
 int ldb_recover_meta(ldb_context_t* context, ldb_recovery_t** recovery){

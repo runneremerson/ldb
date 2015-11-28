@@ -194,8 +194,7 @@ func (manager *LdbManager) InitDB(file_path string, cache_size int, write_buffer
 	manager.ldbKeyLock = make([]sync.RWMutex, KEY_LOCK_NUM)
 	manager.inited = true
 
-	//go manager.RecoverMetaData()
-	//go manager.CleanExpiredData()
+	go manager.RecoverMetaData()
 
 	return 0
 }
@@ -214,33 +213,6 @@ func (manager *LdbManager) SetExceptionTrace(programName string) {
 	defer C.free(unsafe.Pointer(cName))
 
 	C.set_ldb_signal_handler(cName)
-}
-
-func (manager *LdbManager) CleanExpiredData() {
-	for {
-		expiration := (*C.ldb_expiration_t)(CNULL)
-		for {
-			valueItems := (*C.value_item_t)(CNULL)
-			cSize := C.size_t(0)
-			ret := C.ldb_fetch_expire(manager.context, &expiration, &valueItems, &cSize)
-			if int(ret) < 0 || int(cSize) == 0 {
-				break
-			}
-			keys := make([]string, int(cSize))
-			versions := make([]StorageVersionType, int(cSize))
-			version := uint64((time.Now().UnixNano() / 1000) << 8)
-			for i := 0; i < int(cSize); i++ {
-				var value StorageByteValueData
-				ConvertCValueItemPointer2GoByte(valueItems, i, &value)
-				keys[i] = string(value.Value)
-				versions[i] = StorageVersionType(version)
-			}
-			meta := StorageMetaData{0, 0x00000002, 0}
-			manager.Del(keys, versions, meta)
-
-			time.Sleep(time.Duration(500) * time.Millisecond)
-		}
-	}
 }
 
 func (manager *LdbManager) RecoverMetaData() {

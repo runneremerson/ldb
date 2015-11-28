@@ -892,6 +892,7 @@ Status DBImpl::InstallCompactionResults(CompactionState* compact) {
 
 Status DBImpl::DoCompactionWork(CompactionState* compact) {
   const uint64_t start_micros = env_->NowMicros();
+  const uint64_t start_millis = start_micros/1000;
   int64_t imm_micros = 0;  // Micros spent doing imm_ compactions
 
   Log(options_.info_log,  "Compacting %d@%d + %d@%d files",
@@ -972,6 +973,25 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
         //     few iterations of this loop (by rule (A) above).
         // Therefore this deletion marker is obsolete and can be dropped.
         drop = true;
+      } else if (ikey.type == kTypeValue ) {
+        Slice val = input->value();
+        if(val.size() >= 9) {
+          unsigned char c = DecodeFixed8(val.data());
+          ValueType val_type = static_cast<ValueType>(c);
+          uint64_t version = DecodeFixed64(val.data() + 1);
+          if(val_type & kTypeExpiration){
+            uint64_t expiration = DecodeFixed64(val.data() + 1 + 8);
+            //clean expired data
+            if(expiration <= start_millis){
+              drop = true;
+            }
+          }else if(val_type & kTypeLater){
+            //clean delay delete data
+            if((version & 0xFFFFFFFFFF00) <= start_micros){
+              drop = true;
+            }
+          } 
+        }
       }
 
       last_sequence_for_key = ikey.sequence;
