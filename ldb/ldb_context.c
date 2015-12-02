@@ -32,7 +32,7 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
     if(leveldb_error!=NULL){
         goto err;
     }
-    context->for_recovering_ = (leveldb_snapshot_t*)leveldb_create_snapshot_for_recovering(context->database_);
+    context->for_recovering_ = (leveldb_snapshot_t*)leveldb_create_snapshot(context->database_);
 
     return context;
 err:

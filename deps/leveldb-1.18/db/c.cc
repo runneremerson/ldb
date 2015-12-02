@@ -294,13 +294,6 @@ const leveldb_snapshot_t* leveldb_create_snapshot(
 }
 
 
-const leveldb_snapshot_t* leveldb_create_snapshot_for_recovering(
-    leveldb_t* db) {
-  leveldb_snapshot_t* result = new leveldb_snapshot_t;
-  result->rep = db->rep->GetSnapshotForRecovering();
-  return result;
-}
-
 void leveldb_release_snapshot(
     leveldb_t* db,
     const leveldb_snapshot_t* snapshot) {

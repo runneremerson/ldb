@@ -40,7 +40,6 @@ class DBImpl : public DB {
   virtual Status WriteMeta(const Slice& key);
   virtual Iterator* NewIterator(const ReadOptions&);
   virtual const Snapshot* GetSnapshot();
-  virtual const Snapshot* GetSnapshotForRecovering();
   virtual void ReleaseSnapshot(const Snapshot* snapshot);
   virtual bool GetProperty(const Slice& property, std::string* value);
   virtual void GetApproximateSizes(const Range* range, int n, uint64_t* sizes);

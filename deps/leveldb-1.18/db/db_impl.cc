@@ -1205,10 +1205,6 @@ const Snapshot* DBImpl::GetSnapshot() {
   return snapshots_.New(versions_->LastSequence());
 }
 
-const Snapshot* DBImpl::GetSnapshotForRecovering() {
-  MutexLock l(&mutex_);
-  return snapshots_.New(this->seq_for_recovering_);  
-}
 
 void DBImpl::ReleaseSnapshot(const Snapshot* s) {
   MutexLock l(&mutex_);

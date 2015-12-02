@@ -234,7 +234,7 @@ int hash_mget(ldb_context_t* context, const ldb_slice_t* name, const ldb_list_t*
     ldb_meta_t *meta = NULL;
     ldb_list_node_t *node_val = ldb_list_node_create();
     ldb_list_node_t *node_meta = ldb_list_node_create();
-    if(hash_get(context, name, (ldb_slice_t*)node_key->data_, &val, &meta)== LDB_OK){
+    if(hash_mget_one(context, readoptions, name, (ldb_slice_t*)node_key->data_, &val, &meta)== LDB_OK){
       node_val->data_ = val;
       node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
       node_meta->value_ = ldb_meta_nextver(meta);
