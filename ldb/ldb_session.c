@@ -93,7 +93,7 @@ int ldb_recover_meta(ldb_context_t* context, ldb_recovery_t** recovery){
     if(*recovery == NULL){
         *recovery = ldb_recovery_create(context);
     }
-    size_t limit = 50000;
+    size_t limit = 500000;
     retval = ldb_recovery_rec_batch(context, *recovery, limit);
     if(retval < 0){
         ldb_recovery_destroy(*recovery);

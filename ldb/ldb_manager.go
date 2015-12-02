@@ -193,7 +193,7 @@ func (manager *LdbManager) InitDB(file_path string, cache_size int, write_buffer
 	manager.ldbKeyLock = make([]sync.RWMutex, KEY_LOCK_NUM)
 	manager.inited = true
 
-	go manager.RecoverMetaData()
+	manager.RecoverMetaData()
 
 	return 0
 }
@@ -207,13 +207,6 @@ func (manager *LdbManager) FinaliseDB() {
 	}
 }
 
-func (manager *LdbManager) SetExceptionTrace(programName string) {
-	cName := C.CString(programName)
-	defer C.free(unsafe.Pointer(cName))
-
-	C.set_ldb_signal_handler(cName)
-}
-
 func (manager *LdbManager) RecoverMetaData() {
 	recovery := (*C.ldb_recovery_t)(CNULL)
 	for {
@@ -221,8 +214,15 @@ func (manager *LdbManager) RecoverMetaData() {
 		if int(ret) < 0 {
 			break
 		}
-		time.Sleep(time.Duration(500) * time.Millisecond)
+		time.Sleep(time.Duration(2) * time.Millisecond)
 	}
+}
+
+func (manager *LdbManager) SetExceptionTrace(programName string) {
+	cName := C.CString(programName)
+	defer C.free(unsafe.Pointer(cName))
+
+	C.set_ldb_signal_handler(cName)
 }
 
 func (manager *LdbManager) Expire(key string, seconds uint32, version StorageVersionType) int {
