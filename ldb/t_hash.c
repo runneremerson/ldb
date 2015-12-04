@@ -169,8 +169,58 @@ end:
   return retval;
 }
 
+
+static int hash_mget_one(ldb_context_t* context, 
+                         const leveldb_readoptions_t* options, 
+                         const ldb_slice_t* name, 
+                         const ldb_slice_t* key, 
+                         ldb_slice_t** pslice, 
+                         ldb_meta_t** pmeta){
+  int retval = 0;
+  char *val = NULL, *errptr = NULL;
+  size_t vallen = 0;
+  ldb_slice_t* slice_key = NULL;
+  encode_hash_key(ldb_slice_data(name), ldb_slice_size(name), ldb_slice_data(key), ldb_slice_size(key), NULL, &slice_key);
+  val = leveldb_get(context->database_, options, ldb_slice_data(slice_key), ldb_slice_size(slice_key), &vallen, &errptr);
+  ldb_slice_destroy(slice_key);
+  if(errptr!=NULL){
+    fprintf(stderr, "%s leveldb_get fail %s.\n", __func__, errptr);
+    leveldb_free(errptr);
+    retval = LDB_ERR;
+    goto end;
+  }
+  if(val!=NULL){
+    assert(vallen>= LDB_VAL_META_SIZE);
+    uint8_t type = leveldb_decode_fixed8(val);
+    if(type & LDB_VALUE_TYPE_VAL){
+      if(type & LDB_VALUE_TYPE_LAT){
+        retval = LDB_OK_NOT_EXIST;
+        goto end;
+      }
+      *pslice = ldb_slice_create(val + LDB_VAL_META_SIZE, vallen - LDB_VAL_META_SIZE);
+      uint64_t version = leveldb_decode_fixed64(val + LDB_VAL_TYPE_SIZE);
+      *pmeta = ldb_meta_create(0, 0, version);
+      retval = LDB_OK;
+    }else{
+      retval = LDB_OK_NOT_EXIST;
+    }
+  }else{
+    retval = LDB_OK_NOT_EXIST;
+  }
+
+end:
+  if(val != NULL){
+    leveldb_free(val); 
+  }
+  return retval;
+}
+
 int hash_mget(ldb_context_t* context, const ldb_slice_t* name, const ldb_list_t* keylist, ldb_list_t** pvallist, ldb_list_t** pmetalist){
   int retval = 0;
+  leveldb_readoptions_t* readoptions = leveldb_readoptions_create();
+  const leveldb_snapshot_t *snapshot_for_mget = leveldb_create_snapshot(context->database_);
+  leveldb_readoptions_set_snapshot(readoptions, snapshot_for_mget);
+
   ldb_list_iterator_t *keyiterator = ldb_list_iterator_create(keylist);
   *pvallist = ldb_list_create();
   *pmetalist = ldb_list_create();
@@ -199,6 +249,8 @@ int hash_mget(ldb_context_t* context, const ldb_slice_t* name, const ldb_list_t*
   }
 
   ldb_list_iterator_destroy(keyiterator);
+  leveldb_readoptions_destroy(readoptions);
+  leveldb_release_snapshot(context->database_, snapshot_for_mget);
   return retval;
 }
 

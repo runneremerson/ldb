@@ -54,7 +54,7 @@ end:
 int string_set(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta){
   int retval = 0;
   if(ldb_slice_size(key) == 0){
-    fprintf(stderr, "empty key!\n");
+    fprintf(stderr, "%s empty key!\n", __func__);
     retval = LDB_ERR;
     goto end;
   }
@@ -86,7 +86,7 @@ end:
 int string_setnx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta){
   int retval = LDB_OK;
   if(ldb_slice_size(key) == 0){
-    fprintf(stderr, "empty key!\n");
+    fprintf(stderr, "%s empty key!\n", __func__);
     retval = LDB_ERR;
     goto end;
   }
@@ -129,7 +129,7 @@ end:
 int string_setxx(ldb_context_t* context, const ldb_slice_t* key, const ldb_slice_t* value, const ldb_meta_t* meta){
   int retval = LDB_OK;
   if(ldb_slice_size(key) == 0){
-    fprintf(stderr, "empty key!\n");
+    fprintf(stderr, "%s empty key!\n", __func__);
     retval = LDB_ERR;
     goto end;
   }
@@ -210,7 +210,7 @@ int string_mset(ldb_context_t* context, const ldb_list_t* datalist, const ldb_li
   char* errptr = NULL;
   ldb_context_writebatch_commit(context, &errptr);
   if(errptr != NULL){
-    fprintf(stderr, "write writebatch fail %s.\n", errptr);
+    fprintf(stderr, "%s write writebatch fail %s.\n", __func__, errptr);
     leveldb_free(errptr);
     retval = LDB_ERR;
     goto err;
@@ -291,7 +291,7 @@ int string_msetnx(ldb_context_t* context, const ldb_list_t* datalist, const ldb_
   char* errptr = NULL;
   ldb_context_writebatch_commit(context, &errptr);
   if(errptr != NULL){
-    fprintf(stderr, "write writebatch fail %s.\n", errptr);
+    fprintf(stderr, "%s write writebatch fail %s.\n", __func__, errptr);
     leveldb_free(errptr);
     retval = LDB_ERR;
     goto err;
@@ -323,7 +323,55 @@ int string_get(ldb_context_t* context, const ldb_slice_t* key, ldb_slice_t** pva
   ldb_slice_destroy(slice_key);
   int retval = LDB_OK;
   if(errptr != NULL){
-    fprintf(stderr, "leveldb_get fail %s.\n", errptr);
+    fprintf(stderr, "%s leveldb_get fail %s.\n", __func__, errptr);
+    leveldb_free(errptr);
+    retval = LDB_ERR;
+    goto end;
+  }
+  if(val != NULL){
+    assert(vallen>= LDB_VAL_META_SIZE);
+    uint8_t type = leveldb_decode_fixed8(val);
+    if(type & LDB_VALUE_TYPE_VAL){
+      if(type & LDB_VALUE_TYPE_LAT){
+        retval = LDB_OK_NOT_EXIST;
+        goto end;
+      }
+      uint64_t version = leveldb_decode_fixed64(val + LDB_VAL_TYPE_SIZE);
+      uint64_t exptime = 0;
+      if(type & LDB_VALUE_TYPE_EXP){
+        exptime = leveldb_decode_fixed64(val + LDB_VAL_META_SIZE);   
+          if(time_ms() >= exptime){
+              retval = LDB_OK_NOT_EXIST;
+              goto end;
+          }
+      }
+      *pvalue = ldb_slice_create(val+LDB_VAL_META_SIZE, vallen-LDB_VAL_META_SIZE);
+      *pmeta = ldb_meta_create_with_exp(0, 0, version, exptime); 
+      retval = LDB_OK;
+    }else{
+      retval = LDB_OK_NOT_EXIST;
+    }
+  }else{
+    retval = LDB_OK_NOT_EXIST;
+  }
+
+end:
+  if(val != NULL){
+    leveldb_free(val);
+  }
+  return retval;
+}
+
+static int string_mget_one(ldb_context_t* context, const leveldb_readoptions_t* options, const ldb_slice_t* key, ldb_slice_t** pvalue, ldb_meta_t** pmeta){
+  char *val, *errptr = NULL;
+  size_t vallen = 0;
+  ldb_slice_t *slice_key = NULL;
+  encode_kv_key(ldb_slice_data(key), ldb_slice_size(key), NULL, &slice_key);
+  val = leveldb_get(context->database_, options, ldb_slice_data(slice_key), ldb_slice_size(slice_key), &vallen, &errptr);
+  ldb_slice_destroy(slice_key);
+  int retval = LDB_OK;
+  if(errptr != NULL){
+    fprintf(stderr, "%s leveldb_get fail %s.\n", __func__, errptr);
     leveldb_free(errptr);
     retval = LDB_ERR;
     goto end;
@@ -365,6 +413,10 @@ end:
 
 int string_mget(ldb_context_t* context, const ldb_list_t* keylist, ldb_list_t** pvallist, ldb_list_t** pmetalist){
   int retval = 0; 
+  leveldb_readoptions_t* readoptions = leveldb_readoptions_create();
+  const leveldb_snapshot_t *snapshot_for_mget = leveldb_create_snapshot(context->database_);
+  leveldb_readoptions_set_snapshot(readoptions, snapshot_for_mget);
+  
   ldb_list_iterator_t *keyiterator = ldb_list_iterator_create(keylist);
   *pvallist = ldb_list_create();
   *pmetalist = ldb_list_create();
@@ -378,7 +430,7 @@ int string_mget(ldb_context_t* context, const ldb_list_t* keylist, ldb_list_t** 
     ldb_meta_t *meta = NULL;
     ldb_list_node_t *node_val = ldb_list_node_create();
     ldb_list_node_t *node_meta = ldb_list_node_create();
-    if(string_get(context, (ldb_slice_t*)node_key->data_, &val, &meta)== LDB_OK){
+    if(string_mget_one(context, readoptions, (ldb_slice_t*)node_key->data_, &val, &meta)== LDB_OK){
       node_val->data_ = val;
       node_val->type_ = LDB_LIST_NODE_TYPE_SLICE;
       node_meta->data_ = meta;
@@ -392,13 +444,15 @@ int string_mget(ldb_context_t* context, const ldb_list_t* keylist, ldb_list_t** 
   }
 
   ldb_list_iterator_destroy(keyiterator);
+  leveldb_readoptions_destroy(readoptions);
+  leveldb_release_snapshot(context->database_, snapshot_for_mget);
   return retval;
 }
 
 int string_del(ldb_context_t* context, const ldb_slice_t* key, const ldb_meta_t* meta){
   int retval = 0;
   if(ldb_slice_size(key) == 0){
-    fprintf(stderr, "empty key!\n");
+    fprintf(stderr, "%s empty key!\n", __func__);
     retval = LDB_ERR;
     goto end;
   }
@@ -414,7 +468,7 @@ int string_del(ldb_context_t* context, const ldb_slice_t* key, const ldb_meta_t*
   leveldb_writeoptions_destroy(writeoptions);
   ldb_slice_destroy(slice_key);
   if(errptr != NULL){
-    fprintf(stderr, "leveldb_delete fail %s.\n", errptr);
+    fprintf(stderr, "%s leveldb_delete fail %s.\n", errptr, __func__);
     leveldb_free(errptr);
     retval = LDB_ERR;
     goto end;

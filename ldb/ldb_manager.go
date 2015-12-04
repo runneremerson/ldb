@@ -5,7 +5,6 @@ package ldb
 #cgo  LDFLAGS:	 -L/usr/local/lib  -L../deps/leveldb-1.18 -L../deps/jemalloc-3.3.1/lib -lleveldb -ljemalloc
 #include "ldb_session.h"
 #include "ldb_context.h"
-#include "ldb_expiration.h"
 */
 import "C"
 
@@ -283,9 +282,8 @@ func (manager *LdbManager) Persist(key string, version StorageVersionType) int {
 }
 
 func (manager *LdbManager) Exists(key string) int {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 	defer C.free(unsafe.Pointer(csKey))
@@ -297,9 +295,8 @@ func (manager *LdbManager) Exists(key string) int {
 }
 
 func (manager *LdbManager) Ttl(key string, remain *uint32) int {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 	defer C.free(unsafe.Pointer(csKey))
@@ -315,9 +312,8 @@ func (manager *LdbManager) Ttl(key string, remain *uint32) int {
 }
 
 func (manager *LdbManager) PTtl(key string, remain *uint32) int {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 	defer C.free(unsafe.Pointer(csKey))
@@ -458,9 +454,8 @@ func (manager *LdbManager) SetWithSecond(key string, value StorageValueData, met
 }
 
 func (manager *LdbManager) Get(key string) (int, StorageByteValueData) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := (*C.char)(StringPointer(key))
 	var valueItem *C.value_item_t
@@ -480,9 +475,8 @@ func (manager *LdbManager) Get(key string) (int, StorageByteValueData) {
 }
 
 func (manager *LdbManager) GetWithByte(key []byte) (int, StorageByteValueData) {
-	id := getLockID(string(key))
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := (*C.char)(unsafe.Pointer(&key[0]))
 	var valueItem *C.value_item_t
@@ -587,8 +581,8 @@ func (manager *LdbManager) MSet(keyVals [][]byte, versions []StorageVersionType,
 }
 
 func (manager *LdbManager) MGet(keys [][]byte, results *[][]byte, versions []uint64) int {
-	manager.doLdbLock()
-	defer manager.doLdbUnlock()
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	if len(keys) == 0 {
 		return STORAGE_ERR
@@ -648,9 +642,8 @@ func (manager *LdbManager) HSet(key, field string, value StorageValueData, meta 
 }
 
 func (manager *LdbManager) HGet(key, field []byte) (int, StorageByteValueData) {
-	id := getLockID(string(key))
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	var valueItem *C.value_item_t
 	valueItem = (*C.value_item_t)(CNULL)
@@ -673,9 +666,8 @@ func (manager *LdbManager) HGet(key, field []byte) (int, StorageByteValueData) {
 }
 
 func (manager *LdbManager) HExists(key, field string) int {
-	id := getLockID(string(key))
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 	csField := C.CString(field)
@@ -791,9 +783,8 @@ func (manager *LdbManager) HmSet(key string, values map[string]StorageValueData,
 }
 
 func (manager *LdbManager) HmGet(key string, fields []string) (int, []StorageByteValueData) {
-	id := getLockID(string(key))
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 	defer C.free(unsafe.Pointer(csKey))
@@ -906,9 +897,8 @@ func (manager *LdbManager) HDel(key string, fields map[string]StorageValueData, 
 }
 
 func (manager *LdbManager) HLen(key string) (ret int, length uint64) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 
@@ -922,9 +912,8 @@ func (manager *LdbManager) HLen(key string) (ret int, length uint64) {
 }
 
 func (manager *LdbManager) HKeys(key string) (ret int, values [][]byte) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 
@@ -954,9 +943,8 @@ func (manager *LdbManager) HKeys(key string) (ret int, values [][]byte) {
 }
 
 func (manager *LdbManager) HVals(key string) (ret int, values [][]byte) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 
@@ -986,9 +974,8 @@ func (manager *LdbManager) HVals(key string) (ret int, values [][]byte) {
 }
 
 func (manager *LdbManager) HGetAll(key string) (ret int, values map[string]StorageByteValueData) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 	defer C.free(unsafe.Pointer(csKey))
@@ -1076,9 +1063,8 @@ func (manager *LdbManager) SAdd(key string, values []StorageValueData, meta Stor
 }
 
 func (manager *LdbManager) SMembers(key string) (int, []StorageByteValueData) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 
@@ -1196,9 +1182,8 @@ func (manager *LdbManager) SRem(key string, values []StorageValueData, meta Stor
 }
 
 func (manager *LdbManager) SCard(key string) (int, uint64) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 
@@ -1212,9 +1197,8 @@ func (manager *LdbManager) SCard(key string) (int, uint64) {
 }
 
 func (manager *LdbManager) SIsMember(key string, value string) int {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 	defer C.free(unsafe.Pointer(csKey))
@@ -1337,9 +1321,8 @@ func (manager *LdbManager) ZRem(key string, values []StorageValueData, meta Stor
 }
 
 func (manager *LdbManager) ZCount(key string, start, end string) (int, uint64) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 
@@ -1366,9 +1349,8 @@ func (manager *LdbManager) ZCount(key string, start, end string) (int, uint64) {
 }
 
 func (manager *LdbManager) ZCard(key string) (int, uint64) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 
@@ -1382,9 +1364,8 @@ func (manager *LdbManager) ZCard(key string) (int, uint64) {
 }
 
 func (manager *LdbManager) ZScore(key string, value StorageValueData) (int, int64) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 	csValue := C.CString(value.Value)
@@ -1400,9 +1381,8 @@ func (manager *LdbManager) ZScore(key string, value StorageValueData) (int, int6
 }
 
 func (manager *LdbManager) ZRange(key string, start, end, withscore int) (int, []StorageByteValueData, []int64) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 	defer C.free(unsafe.Pointer(csKey))
@@ -1457,9 +1437,8 @@ func (manager *LdbManager) ZRange(key string, start, end, withscore int) (int, [
 }
 
 func (manager *LdbManager) ZRevrange(key string, start, end, withscore int) (int, []StorageByteValueData, []int64) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 
@@ -1515,9 +1494,8 @@ func (manager *LdbManager) ZRevrange(key string, start, end, withscore int) (int
 }
 
 func (manager *LdbManager) ZRangeByScore(key string, min, max string, withscore int, reverse int) (int, []StorageByteValueData, []int64) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 
@@ -1625,9 +1603,8 @@ func (manager *LdbManager) ZRemRangeByScore(key string, min, max string, version
 }
 
 func (manager *LdbManager) ZRank(key string, value StorageValueData) (int, uint64) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 	csValue := C.CString(value.Value)
@@ -1644,9 +1621,8 @@ func (manager *LdbManager) ZRank(key string, value StorageValueData) (int, uint6
 }
 
 func (manager *LdbManager) ZRevRank(key string, value StorageValueData) (int, uint64) {
-	id := getLockID(key)
-	manager.doLdbKeyLock(id)
-	defer manager.doLdbKeyUnlock(id)
+	manager.doLdbRLock()
+	defer manager.doLdbRUnlock()
 
 	csKey := C.CString(key)
 	csValue := C.CString(value.Value)
