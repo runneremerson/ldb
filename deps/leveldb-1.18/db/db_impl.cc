@@ -420,7 +420,8 @@ Status DBImpl::RecoverLogFile(uint64_t log_number,
   std::string scratch;
   Slice record;
   WriteBatch batch;
-  MemTable* mem = NULL;
+  std::vector<WriteBatch> batch_store;
+  //MemTable* mem = NULL;
   while (reader.ReadRecord(&record, &scratch) &&
          status.ok()) {
     if (record.size() < 12) {
@@ -430,15 +431,17 @@ Status DBImpl::RecoverLogFile(uint64_t log_number,
     }
     WriteBatchInternal::SetContents(&batch, record);
 
-    if (mem == NULL) {
-      mem = new MemTable(NULL, internal_comparator_);
-      mem->Ref();
-    }
-    status = WriteBatchInternal::InsertInto(&batch, mem);
-    MaybeIgnoreError(&status);
-    if (!status.ok()) {
-      break;
-    }
+    //if (mem == NULL) {
+    //  mem = new MemTable(NULL, internal_comparator_);
+    //  mem->Ref();
+    //}
+    //status = WriteBatchInternal::InsertInto(&batch, mem);
+    //MaybeIgnoreError(&status);
+    //if (!status.ok()) {
+    //  break;
+    //}
+    batch_store.push_back(batch);
+
     const SequenceNumber first_seq = 
         WriteBatchInternal::Sequence(&batch);
     const SequenceNumber last_seq =
@@ -453,25 +456,26 @@ Status DBImpl::RecoverLogFile(uint64_t log_number,
       *min_sequence = first_seq;
     }
 
-    if (mem->ApproximateMemoryUsage() > options_.write_buffer_size) {
-      status = WriteLevel0Table(mem, edit, NULL);
-      if (!status.ok()) {
-      //  // Reflect errors immediately so that conditions like full
-      //  // file-systems cause the DB::Open() to fail.
-        break;
-      }
-      mem->Unref();
-      mem = NULL;
-    }
+    //if (mem->ApproximateMemoryUsage() > options_.write_buffer_size) {
+    //  status = WriteLevel0Table(mem, edit, NULL);
+    //  if (!status.ok()) {
+    //  //  // Reflect errors immediately so that conditions like full
+    //  //  // file-systems cause the DB::Open() to fail.
+    //    break;
+    //  }
+    //  mem->Unref();
+    //  mem = NULL;
+    //}
   }
+  batch_for_recovering_.push_back(batch_store);
 
-  if (status.ok() && mem != NULL) {
-    status = WriteLevel0Table(mem, edit, NULL);
-    // Reflect errors immediately so that conditions like full
-    // file-systems cause the DB::Open() to fail.
-  }
+  //if (status.ok() && mem != NULL) {
+  //  status = WriteLevel0Table(mem, edit, NULL);
+  //  // Reflect errors immediately so that conditions like full
+  //  // file-systems cause the DB::Open() to fail.
+  //}
 
-  if (mem != NULL) mem->Unref();
+  //if (mem != NULL) mem->Unref();
   delete file;
   return status;
 }
@@ -553,6 +557,7 @@ void DBImpl::CompactMemTable() {
   } else {
     RecordBackgroundError(s);
   }
+  
 }
 
 void DBImpl::CompactRange(const Slice* begin, const Slice* end) {
@@ -1205,6 +1210,11 @@ const Snapshot* DBImpl::GetSnapshot() {
   return snapshots_.New(versions_->LastSequence());
 }
 
+const Snapshot* DBImpl::GetSnapshotForRecovering(){
+  MutexLock l(&mutex_);
+  return snapshots_.New(seq_for_recovering_);  
+}
+
 
 void DBImpl::ReleaseSnapshot(const Snapshot* s) {
   MutexLock l(&mutex_);
@@ -1231,6 +1241,18 @@ Status DBImpl::WriteMeta(const Slice& key){
   MutexLock l(&mutex_);
   mem_->AddMeta(key);
   return Status();
+}
+
+void DBImpl::WriteRecovering(const WriteOptions& options){
+    const size_t size = batch_for_recovering_.size();
+    for( size_t l=0; l<size; ++l){
+        MemTable* mem = NULL;
+        const size_t size_for_l = batch_for_recovering_[l].size();
+        for(size_t b=0; b<size_for_l; ++b){
+            this->Write(options, &batch_for_recovering_[l][b]);
+        }
+    }
+    batch_for_recovering_.clear();
 }
 
 Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {

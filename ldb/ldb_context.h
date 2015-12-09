@@ -26,6 +26,8 @@ void ldb_context_destroy( ldb_context_t* context);
 
 void ldb_context_release_recovering_snapshot(ldb_context_t* context);
 
+void ldb_context_do_write_recovering(ldb_context_t* context);
+
 void ldb_context_writebatch_commit(ldb_context_t* context, char** errptr);
 
 void ldb_context_writebatch_put(ldb_context_t* context, const char* key, size_t klen, const char* val, size_t vlen);

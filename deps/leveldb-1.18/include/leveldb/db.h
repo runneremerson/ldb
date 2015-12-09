@@ -76,6 +76,7 @@ class DB {
   virtual Status Write(const WriteOptions& options, WriteBatch* updates) = 0;
 
   virtual Status WriteMeta(const Slice& key) = 0;
+  virtual void WriteRecovering(const WriteOptions& options) = 0;
 
   // If the database contains an entry for "key" store the
   // corresponding value in *value and return OK.
@@ -100,6 +101,7 @@ class DB {
   // state.  The caller must call ReleaseSnapshot(result) when the
   // snapshot is no longer needed.
   virtual const Snapshot* GetSnapshot() = 0;
+  virtual const Snapshot* GetSnapshotForRecovering() = 0;
 
   // Release a previously acquired snapshot.  The caller must not
   // use "snapshot" after this call.

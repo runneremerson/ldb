@@ -1,6 +1,7 @@
 #include "ldb/t_hash.h"
 #include "ldb/ldb_define.h"
 #include "ldb/util.h"
+#include "ldb/ldb_session.h"
 
 #include <assert.h>
 #include <string.h>
@@ -258,6 +259,8 @@ static void test_hash(ldb_context_t* context){
 int main(int argc, char* argv[]){
     ldb_context_t *context = ldb_context_create("/tmp/testhash", 128, 64, 1);
     assert(context != NULL);
+    ldb_recovery_t *recovery = NULL;
+    ldb_recover_meta(context, &recovery);
 
     test_hash(context);
 

@@ -118,6 +118,10 @@ extern void leveldb_write(
     leveldb_writebatch_t* batch,
     char** errptr);
 
+extern void leveldb_write_recovering(
+    leveldb_t *db,
+    const leveldb_writeoptions_t* options);
+
 /* Returns NULL if not found.  A malloc()ed array otherwise.
    Stores the length of the array in *vallen. */
 extern char* leveldb_get(
@@ -132,6 +136,9 @@ extern leveldb_iterator_t* leveldb_create_iterator(
     const leveldb_readoptions_t* options);
 
 extern const leveldb_snapshot_t* leveldb_create_snapshot(
+    leveldb_t* db);
+
+extern const leveldb_snapshot_t* leveldb_create_snapshot_for_recovering(
     leveldb_t* db);
 
 extern void leveldb_release_snapshot(

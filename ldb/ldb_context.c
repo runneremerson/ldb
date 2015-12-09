@@ -32,7 +32,7 @@ ldb_context_t* ldb_context_create(const char* name, size_t cache_size, size_t wr
     if(leveldb_error!=NULL){
         goto err;
     }
-    context->for_recovering_ = (leveldb_snapshot_t*)leveldb_create_snapshot(context->database_);
+    context->for_recovering_ = (leveldb_snapshot_t*)leveldb_create_snapshot_for_recovering(context->database_);
 
     return context;
 err:
@@ -81,6 +81,12 @@ void ldb_context_release_recovering_snapshot(ldb_context_t* context){
         leveldb_release_snapshot(context->database_, context->for_recovering_);
         context->for_recovering_ = NULL;
     }
+}
+
+void ldb_context_do_write_recovering(ldb_context_t* context){
+    leveldb_writeoptions_t* writeoptions = leveldb_writeoptions_create();
+    leveldb_write_recovering(context->database_, writeoptions); 
+    leveldb_writeoptions_destroy(writeoptions);
 }
 
 

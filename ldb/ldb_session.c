@@ -99,6 +99,7 @@ int ldb_recover_meta(ldb_context_t* context, ldb_recovery_t** recovery){
         ldb_recovery_destroy(*recovery);
         ldb_context_release_recovering_snapshot(context);
         *recovery = NULL;
+        ldb_context_do_write_recovering(context);
     }
     return retval; 
 }
