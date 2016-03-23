@@ -38,8 +38,10 @@ class DBImpl : public DB {
                      const Slice& key,
                      std::string* value);
   virtual Status WriteMeta(const Slice& key);
+  virtual void WriteRecovering(const WriteOptions& options);
   virtual Iterator* NewIterator(const ReadOptions&);
   virtual const Snapshot* GetSnapshot();
+  virtual const Snapshot* GetSnapshotForRecovering();
   virtual void ReleaseSnapshot(const Snapshot* snapshot);
   virtual bool GetProperty(const Slice& property, std::string* value);
   virtual void GetApproximateSizes(const Range* range, int n, uint64_t* sizes);
@@ -157,6 +159,8 @@ class DBImpl : public DB {
   SnapshotList snapshots_;
 
   SequenceNumber seq_for_recovering_;
+
+  std::vector<std::vector<WriteBatch> > batch_for_recovering_;
 
   // Set of table files to protect from deletion because they are
   // part of ongoing compactions.

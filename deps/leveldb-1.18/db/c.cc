@@ -257,6 +257,12 @@ void leveldb_write(
   SaveError(errptr, db->rep->Write(options->rep, &batch->rep));
 }
 
+extern void leveldb_write_recovering(
+    leveldb_t* db,
+    const leveldb_writeoptions_t* options){ 
+    db->rep->WriteRecovering(options->rep);
+}
+
 char* leveldb_get(
     leveldb_t* db,
     const leveldb_readoptions_t* options,
@@ -290,6 +296,14 @@ const leveldb_snapshot_t* leveldb_create_snapshot(
     leveldb_t* db) {
   leveldb_snapshot_t* result = new leveldb_snapshot_t;
   result->rep = db->rep->GetSnapshot();
+  return result;
+}
+
+
+const leveldb_snapshot_t* leveldb_create_snapshot_for_recovering(
+    leveldb_t* db) {
+  leveldb_snapshot_t* result = new leveldb_snapshot_t;
+  result->rep = db->rep->GetSnapshotForRecovering();
   return result;
 }
 
