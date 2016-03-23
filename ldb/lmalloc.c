@@ -3,7 +3,6 @@
 #include <string.h>
 #include <strings.h>
 #include "config.h"
-#include "lmalloc.h"
 
 
 #if defined(USE_TCMALLOC)
