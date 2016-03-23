@@ -16,7 +16,6 @@
 #if defined(USE_JEMALLOC)
 #include <jemalloc/jemalloc.h>
 #define USE_JEMALLOC 1
-#define ldb_malloc_size(p) je_malloc_size(p)
 #endif
 
 

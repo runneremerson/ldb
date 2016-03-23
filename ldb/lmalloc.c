@@ -14,7 +14,10 @@
 #endif
 
 #if defined(USE_JEMALLOC)
-
+#define malloc(size) je_malloc(size)
+#define calloc(count,size) je_calloc(count,size)
+#define realloc(ptr,size) je_realloc(ptr,size)
+#define free(ptr) je_free(ptr)
 #endif
 
 

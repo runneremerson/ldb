@@ -82,7 +82,7 @@ case "$TARGET_OS" in
 		if [ ! -f Makefile ]; then
 			echo ""
 			echo "##### building jemalloc... #####"
-			./configure
+			./configure --with-jemalloc-prefix=je_
 			make
 			echo "##### building jemalloc finished #####"
 			echo ""
@@ -112,12 +112,12 @@ echo "CFLAGS=" >> build_config.mk
 #echo "CFLAGS = -DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare" >> build_config.mk
 echo "CFLAGS = -Wall -O0 -g -Wno-sign-compare" >> build_config.mk
 echo "CFLAGS += ${PLATFORM_CFLAGS}" >> build_config.mk
-echo "CFLAGS += -I \"$LEVELDB_PATH/include\"" >> build_config.mk
+echo "CFLAGS += -I $LEVELDB_PATH/include" >> build_config.mk
 
 echo "CLIBS=" >> build_config.mk
 echo "CLIBS += ${PLATFORM_CLIBS}" >> build_config.mk
-echo "CLIBS += \"$LEVELDB_PATH/libleveldb.a\"" >> build_config.mk
-echo "CLIBS += \"$SNAPPY_PATH/.libs/libsnappy.a\"" >> build_config.mk
+echo "CLIBS += $LEVELDB_PATH/libleveldb.a" >> build_config.mk
+echo "CLIBS += $SNAPPY_PATH/.libs/libsnappy.a" >> build_config.mk
 
 
 case "$TARGET_OS" in
