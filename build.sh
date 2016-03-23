@@ -2,7 +2,7 @@
 BASE_DIR=`pwd`
 JEMALLOC_PATH="$BASE_DIR/deps/jemalloc-3.3.1"
 LEVELDB_PATH="$BASE_DIR/deps/leveldb-1.18"
-SNAPPY_PATH="$BASE_DIR/deps/snappy-1.1.0"
+SNAPPY_PATH="$BASE_DIR/deps/snappy-1.1.1"
 
 if test -z "$TARGET_OS"; then
 	TARGET_OS=`uname -s`
